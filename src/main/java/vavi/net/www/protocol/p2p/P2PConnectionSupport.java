@@ -18,7 +18,7 @@ import java.util.List;
  */
 public class P2PConnectionSupport {
     /** */
-    private List<P2PConnectionListener> connectionListeners = new ArrayList<P2PConnectionListener>();
+    private final List<P2PConnectionListener> connectionListeners = new ArrayList<>();
 
     /** */
     public void addP2PConnectionListener(P2PConnectionListener connectionListener) {
@@ -32,21 +32,21 @@ public class P2PConnectionSupport {
 
     /** */
     public synchronized void dataArrived(P2PConnectionEvent event) {
-        for (P2PConnectionListener connectionListener : new ArrayList<P2PConnectionListener>(connectionListeners)) {
+        for (P2PConnectionListener connectionListener : new ArrayList<>(connectionListeners)) {
             connectionListener.dataArrived(event);
         }
     }
 
     /** */
     public void newNode(P2PConnectionEvent event) {
-        for (P2PConnectionListener connectionListener : new ArrayList<P2PConnectionListener>(connectionListeners)) {
+        for (P2PConnectionListener connectionListener : new ArrayList<>(connectionListeners)) {
             connectionListener.newNode(event);
         }
     }
 
     /** */
     public void connected(P2PConnectionEvent event) {
-        for (P2PConnectionListener connectionListener : new ArrayList<P2PConnectionListener>(connectionListeners)) {
+        for (P2PConnectionListener connectionListener : new ArrayList<>(connectionListeners)) {
             connectionListener.connected(event);
         }
     }

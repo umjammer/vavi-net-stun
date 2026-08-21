@@ -20,7 +20,7 @@ import vavi.net.stun.Node;
  */
 class StunMulticastOutputStream extends OutputStream {
     /** */
-    private Node node;
+    private final Node node;
 
     /** */
     public StunMulticastOutputStream(Node node) {
@@ -28,16 +28,16 @@ class StunMulticastOutputStream extends OutputStream {
     }
 
     /** */
+    @Override
     public void write(int b) throws IOException {
         throw new UnsupportedOperationException("use #write(byte,int,int)V");
     }
 
     /** */
+    @Override
     public void write(byte[] b, int offset, int length) throws IOException {
         byte[] message = new byte[length];
         System.arraycopy(b, offset, message, 0, length);
         node.sendBroadcastMessage(message);
     }
 }
-
-/* */

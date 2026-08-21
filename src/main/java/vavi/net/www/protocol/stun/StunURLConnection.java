@@ -9,6 +9,8 @@ package vavi.net.www.protocol.stun;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.lang.System.Logger;
+import java.lang.System.Logger.Level;
 import java.net.URL;
 
 import vavi.net.stun.Node;
@@ -19,7 +21,6 @@ import vavi.net.stun.stun.STUNCheckServer.StunType;
 import vavi.net.stun.stunresolver.DatagramConnection;
 import vavi.net.www.protocol.p2p.P2PConnectionEvent;
 import vavi.net.www.protocol.p2p.P2PURLConnection;
-import vavi.util.Debug;
 
 
 /**
@@ -29,6 +30,8 @@ import vavi.util.Debug;
  * @version 0.00 051011 nsano initial version <br>
  */
 public class StunURLConnection extends P2PURLConnection {
+
+    private static final Logger logger = System.getLogger(StunURLConnection.class.getName());
 
     /** */
     private static final String NOTIFYPRESENCE = "NOTIFYMYPRESENCE";
@@ -41,7 +44,7 @@ public class StunURLConnection extends P2PURLConnection {
     /** */
     StunURLConnection(URL url, String id, NodeInfo[] nodeInfos, StunType type) {
         super(url);
-Debug.println("enter <init>");
+logger.log(Level.INFO, "enter <init>");
         //
         if (type == null) {
             this.node = new MyNode(ID.getID(id.getBytes()), nodeInfos);
@@ -53,9 +56,9 @@ Debug.println("enter <init>");
         try {
             node.sendBroadcastMessage(NOTIFYPRESENCE.getBytes());
         } catch (IOException e) {
-            e.printStackTrace();
+            logger.log(Level.ERROR, e.getMessage(), e);
         }
-Debug.println("exit <init>");
+logger.log(Level.INFO, "exit <init>");
     }
 
     /** */
@@ -65,29 +68,32 @@ Debug.println("exit <init>");
         public MyNode(ID id, NodeInfo[] servers) {
             super(id, servers);
             NodeInfo nodeInfo = getLocalNodeInfo();
-System.err.println("started at:" + nodeInfo.toString());
+logger.log(Level.INFO, "started at:" + nodeInfo.toString());
         }
 
         /** */
         public MyNode(ID id, NodeInfo[] servers, StunType type) {
             super(id, servers, type);
             NodeInfo nodeInfo = getLocalNodeInfo();
-System.err.println("started at:" + nodeInfo.toString());
+logger.log(Level.INFO, "started at:" + nodeInfo.toString());
         }
 
         /** */
+        @Override
         public void onDatagramConnectionEstablished(DatagramConnection connection) {
             connectionSupport.connected(new P2PConnectionEvent(this, new StunP2PConnection(connection, StunURLConnection.this)));
-System.err.println("connected: " + connection);
+logger.log(Level.INFO, "connected: " + connection);
         }
 
         /** */
+        @Override
         public void onDatagramConnectionFailed(ID id) {
             connectionSupport.connected(null);
-System.err.println("connection failed: " + id);
+logger.log(Level.INFO, "connection failed: " + id);
         }
 
         /** */
+        @Override
         public void onMessageArrived(Message message) {
             if (!(new String(message.getData()).equals(NOTIFYPRESENCE))) {
                 connectionSupport.dataArrived(new P2PConnectionEvent(this, message.getData()));
@@ -95,16 +101,16 @@ System.err.println("connection failed: " + id);
                 try {
                     node.sendUnicastMessage(NOTIFYPRESENCE.getBytes(), message.getSource());
                 } catch (IOException e) {
-                    e.printStackTrace();
+                    logger.log(Level.ERROR, e.getMessage(), e);
                 }
             }
             connectionSupport.newNode(new P2PConnectionEvent(this, new StunPeer(message.getSource().toString())));
-System.err.println("new node: " + message.getSource());
+logger.log(Level.INFO, "new node: " + message.getSource());
         }
     }
 
     /** */
-    private Node node;
+    private final Node node;
 
     /** */
     Node getNode() {
@@ -125,14 +131,15 @@ System.err.println("new node: " + message.getSource());
     }
 
     /** TODO be unsupported */
+    @Override
     public void connect() throws IOException {
-Debug.println("enter connect");
+logger.log(Level.INFO, "enter connect");
         if (id == null) {
             throw new IllegalStateException("id is not specified");
         }
-Debug.println("id: " + id + ", connection: " + this.hashCode());
+logger.log(Level.INFO, "id: " + id + ", connection: " + this.hashCode());
         node.connectTo(ID.getID(id.getBytes()));
-Debug.println("exit connect");
+logger.log(Level.INFO, "exit connect");
     }
 
     /**
@@ -140,14 +147,14 @@ Debug.println("exit connect");
      * TODO move to super class ???
      * @throws UnsupportedOperationException
      */
+    @Override
     public InputStream getInputStream() throws IOException {
         throw new UnsupportedOperationException("not suppoerted");
     }
 
     /** multicast */
+    @Override
     public OutputStream getOutputStream() throws IOException {
         return new StunMulticastOutputStream(node);
     }
 }
-
-/* */

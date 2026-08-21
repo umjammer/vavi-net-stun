@@ -23,5 +23,3 @@ public interface NetworkEventHandler {
     /** */
     void onDisconnect(Connection connection) throws IOException;
 }
-
-/* */

@@ -7,6 +7,8 @@
 package vavi.net.stun;
 
 import java.io.IOException;
+import java.lang.System.Logger;
+import java.lang.System.Logger.Level;
 
 import vavi.net.stun.messaging.ID;
 import vavi.net.stun.messaging.Message;
@@ -16,7 +18,6 @@ import vavi.net.stun.routing.MessageEventHandler;
 import vavi.net.stun.routing.NodeInfoServer;
 import vavi.net.stun.stun.STUNCheckServer;
 import vavi.net.stun.stunresolver.DatagramConnectionEventHandler;
-import vavi.util.Debug;
 
 
 /**
@@ -26,48 +27,50 @@ import vavi.util.Debug;
 public abstract class Node
     implements MessageEventHandler, DatagramConnectionEventHandler {
 
-    /** */
-    private ID id;
+    private static final Logger logger = System.getLogger(Node.class.getName());
 
     /** */
-    private RoutingPolicy policy;
+    private final ID id;
+
+    /** */
+    private final RoutingPolicy policy;
 
     /** 
-     * servers ‚Ì‚¤‚¿ˆê‚Â‚ÉÚ‘±‚·‚é Node ‚ğì¬‚µ‚Ü‚·B
+     * servers ã®ã†ã¡ä¸€ã¤ã«æ¥ç¶šã™ã‚‹ Node ã‚’ä½œæˆã—ã¾ã™ã€‚
      * <p>use this constructor for debug purposes</p>
      */
     public Node(ID id, NodeInfo[] servers, STUNCheckServer.StunType stunType) {
         this.id = id;
         NodeInfo[] someServers = new NodeInfo[0];
-        for (int i = 0; i < servers.length; i++) {
+        for (NodeInfo server : servers) {
             try {
-                someServers = NodeInfoServer.getActiveNodeInfo(servers[i]);
+                someServers = NodeInfoServer.getActiveNodeInfo(server);
                 break;
             } catch (IOException e) {
-                Debug.println("server is not alive: " + e);
+                logger.log(Level.ERROR, "server is not alive: " + e);
             }
         }
         this.policy = RoutingPolicy.getRoutingPolicy(this, someServers, stunType);
     }
 
     /**
-     * servers ‚Ì‚¤‚¿ˆê‚Â‚ÉÚ‘±‚·‚é Node ‚ğì¬‚µ‚Ü‚·B
+     * servers ã®ã†ã¡ä¸€ã¤ã«æ¥ç¶šã™ã‚‹ Node ã‚’ä½œæˆã—ã¾ã™ã€‚
      * @param id this node's id
      * @param servers 
      */
     public Node(ID id, NodeInfo[] servers) {
         this.id = id;
         NodeInfo[] someServers = new NodeInfo[0];
-        for (int i = 0; i < servers.length; i++) {
+        for (NodeInfo server : servers) {
             try {
-                someServers = NodeInfoServer.getActiveNodeInfo(servers[i]);
+                someServers = NodeInfoServer.getActiveNodeInfo(server);
                 break;
             } catch (IOException e) {
-                Debug.println("server is not alive: " + e);
+                logger.log(Level.INFO, "server is not alive: " + e);
             }
         }
         STUNCheckServer.StunType stunType = STUNCheckServer.checkSTUNType(someServers);
-Debug.println("type: " + stunType);
+logger.log(Level.INFO, "type: " + stunType);
         this.policy = RoutingPolicy.getRoutingPolicy(this, someServers, stunType);
     }
 
@@ -106,16 +109,17 @@ Debug.println("type: " + stunType);
     }
 
     /** */
+    @Override
     public final void onConnectionEstablished(Connection connection, ID id, NodeInfo nodeInfo) {
-        return;
     }
 
     /** */
+    @Override
     public final void onDisconnect(Connection connection) {
-        return;
     }
 
     /** */
+    @Override
     public final void onMessageArrived(Connection connection, Message message) {
         onMessageArrived(message);
     }
@@ -123,5 +127,3 @@ Debug.println("type: " + stunType);
     /** */
     public abstract void onMessageArrived(Message message);
 }
-
-/* */

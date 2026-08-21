@@ -21,10 +21,10 @@ import vavi.net.stun.messaging.ID;
  */
 class StunUnicastOutputStream extends OutputStream {
     /** */
-    private Node node;
+    private final Node node;
 
     /** */
-    private ID id;
+    private final ID id;
 
     /** */
     public StunUnicastOutputStream(Node node, ID id) {
@@ -33,16 +33,16 @@ class StunUnicastOutputStream extends OutputStream {
     }
 
     /** */
+    @Override
     public void write(int b) throws IOException {
         throw new UnsupportedOperationException("use #write(byte,int,int)V");
     }
 
     /** */
+    @Override
     public void write(byte[] b, int offset, int length) throws IOException {
         byte[] message = new byte[length];
         System.arraycopy(b, offset, message, 0, length);
         node.sendUnicastMessage(message, id);
     }
 }
-
-/* */

@@ -9,6 +9,8 @@ package vavi.net.stun.stunresolver;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.lang.System.Logger;
+import java.lang.System.Logger.Level;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
@@ -23,8 +25,6 @@ import vavi.net.stun.routing.ControlMessageHandler;
 import vavi.net.stun.routing.RoutingPolicy;
 import vavi.net.stun.stun.STUNCheckServer;
 import vavi.net.stun.stun.STUNResponse;
-import vavi.util.Debug;
-
 
 
 /**
@@ -32,7 +32,7 @@ import vavi.util.Debug;
  * Created on 2003/07/01
  */
 public class ConnectionResolver implements ControlMessageHandler {
-    private RoutingPolicy policy;
+    private final RoutingPolicy policy;
 
     public ConnectionResolver(RoutingPolicy policy) {
         this.policy = policy;
@@ -43,12 +43,11 @@ public class ConnectionResolver implements ControlMessageHandler {
         STUNConnectionResolver.getDirectConnection(id);
     }
 
+    @Override
     public void onControlMessageArrived(Message message) {
         STUNConnectionResolver.handleControlMessage(message);
     }
 }
-
-/* */
 
 
 /**
@@ -62,11 +61,14 @@ public class ConnectionResolver implements ControlMessageHandler {
  * port 4bytes
  */
 class STUNConnectionResolver {
-    /** */
-    private static List<STUNConnectionResolver> resolvers = new ArrayList<STUNConnectionResolver>();
+
+    private static final Logger logger = System.getLogger(STUNConnectionResolver.class.getName());
 
     /** */
-    private ID remoteID;
+    private static final List<STUNConnectionResolver> resolvers = new ArrayList<>();
+
+    /** */
+    private final ID remoteID;
 
     /** */
     private DatagramSocket socket;
@@ -90,7 +92,7 @@ class STUNConnectionResolver {
     private static RoutingPolicy policy;
 
     /** */
-    private boolean isListening;
+    private final boolean isListening;
 
     /** */
     private STUNConnectionResolver(ID remoteID, int remotePort, boolean listeningFlag) {
@@ -100,7 +102,7 @@ class STUNConnectionResolver {
         try {
             socket = new DatagramSocket();
         } catch (IOException e) {
-            e.printStackTrace();
+            logger.log(Level.ERROR, e.getMessage(), e);
         }
     }
 
@@ -120,8 +122,8 @@ class STUNConnectionResolver {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         DataOutputStream dos = new DataOutputStream(baos);
         STUNResponse response = getRouterIP_Port(socket);
-Debug.println(response);
-Debug.println("Local port: " + socket.getLocalPort());
+logger.log(Level.INFO, response);
+logger.log(Level.INFO, "Local port: " + socket.getLocalPort());
         dos.writeByte(getLocalSTUNType().getType()); // 0
         dos.writeByte(messageType); // 1
         dos.writeInt(getLocalPort()); // 2
@@ -132,7 +134,7 @@ Debug.println("Local port: " + socket.getLocalPort());
         } else {
             dos.writeInt(response.getLocalPort()); // 14
         }
-Debug.println("resolver message size:" + dos.size());
+logger.log(Level.INFO, "resolver message size:" + dos.size());
         return new Message(getLocalID(), getRemoteID(), Message.Type.CONTROL, baos.toByteArray());
     }
 
@@ -176,66 +178,64 @@ Debug.println("resolver message size:" + dos.size());
         System.arraycopy(message.getData(), HEADERLENGTH, ipBytes, 0, 4);
         try {
             this.sendPacket = new DatagramPacket(sendBuffer, message.toBytes().length, InetAddress.getByAddress(ipBytes), port);
-Debug.println("connecting to:" + sendPacket.getAddress().getCanonicalHostName() + ":" + sendPacket.getPort());
+logger.log(Level.INFO, "connecting to:" + sendPacket.getAddress().getCanonicalHostName() + ":" + sendPacket.getPort());
         } catch (IOException e) {
-            e.printStackTrace();
+            logger.log(Level.ERROR, e.getMessage(), e);
         }
-        new Thread() {
-            public void run() {
-                byte[] someSendBuffer = new byte[64];
-                someSendBuffer[0] = 0;
-Debug.println("initiating direct connection");
-                try {
-                    STUNConnectionResolver.this.socket.setSoTimeout(100);
-                    sendPacket.setData(someSendBuffer);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-
-                someSendBuffer[0] = 1;
-                int someCount = 0, someRemoteCount = 0;
-
-                for (int i = 0; i < 50; i++) {
-                    try {
-                        someSendBuffer[0] = (byte) someCount;
-                        sendPacket.setData(someSendBuffer);
-Debug.println("ack to " + sendPacket.getSocketAddress());
-                        STUNConnectionResolver.this.socket.send(sendPacket);
-                        socket.receive(sendPacket);
-                        someRemoteCount = sendPacket.getData()[0];
-                        someCount++;
-                    } catch (SocketTimeoutException e) {
-Debug.println("ack timed out." + socket.getLocalAddress() + ":" + socket.getLocalPort());
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                }
-                while (true) {
-                    try {
-                        socket.receive(sendPacket);
-                    } catch (IOException e) {
-                        break;
-                    }
-                }
-                try { Thread.sleep(100); } catch (InterruptedException e) {}
-                if (someCount > 0 && someRemoteCount > 0) {
-                    try {
-                        STUNConnectionResolver.this.socket.setSoTimeout(0);
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                    STUNConnectionResolver.removeResolver(getLocalPort());
-                    policy.onDatagramConnectionEstablished(new DatagramConnection(socket, getRemoteID(), sendPacket.getAddress(), sendPacket.getPort()));
-                } else {
-Debug.println("connection timed out");
-                    STUNConnectionResolver.removeResolver(getLocalPort());
-                    if (!isListening()) {
-                        policy.onDatagramConnectionFailed(remoteID);
-                    }
-                }
-                return;
+        new Thread(() -> {
+            byte[] someSendBuffer = new byte[64];
+            someSendBuffer[0] = 0;
+logger.log(Level.INFO, "initiating direct connection");
+            try {
+                STUNConnectionResolver.this.socket.setSoTimeout(100);
+                sendPacket.setData(someSendBuffer);
+            } catch (IOException e) {
+                logger.log(Level.ERROR, e.getMessage(), e);
             }
-        }.start();
+
+            someSendBuffer[0] = 1;
+            int someCount = 0, someRemoteCount = 0;
+
+            for (int i = 0; i < 50; i++) {
+                try {
+                    someSendBuffer[0] = (byte) someCount;
+                    sendPacket.setData(someSendBuffer);
+logger.log(Level.INFO, "ack to " + sendPacket.getSocketAddress());
+                    STUNConnectionResolver.this.socket.send(sendPacket);
+                    socket.receive(sendPacket);
+                    someRemoteCount = sendPacket.getData()[0];
+                    someCount++;
+                } catch (SocketTimeoutException e) {
+logger.log(Level.INFO, "ack timed out." + socket.getLocalAddress() + ":" + socket.getLocalPort());
+                } catch (IOException e) {
+                    logger.log(Level.ERROR, e.getMessage(), e);
+                }
+            }
+            while (true) {
+                try {
+                    socket.receive(sendPacket);
+                } catch (IOException e) {
+                    break;
+                }
+            }
+            try { Thread.sleep(100); } catch (InterruptedException e) {}
+            if (someCount > 0 && someRemoteCount > 0) {
+                try {
+                    STUNConnectionResolver.this.socket.setSoTimeout(0);
+                } catch (IOException e) {
+                    logger.log(Level.ERROR, e.getMessage(), e);
+                }
+                STUNConnectionResolver.removeResolver(getLocalPort());
+                policy.onDatagramConnectionEstablished(new DatagramConnection(socket, getRemoteID(), sendPacket.getAddress(), sendPacket.getPort()));
+            } else {
+logger.log(Level.INFO, "connection timed out");
+                STUNConnectionResolver.removeResolver(getLocalPort());
+                if (!isListening()) {
+                    policy.onDatagramConnectionFailed(remoteID);
+                }
+            }
+            return;
+        }).start();
     }
 
     /** */
@@ -254,10 +254,10 @@ Debug.println("connection timed out");
     }
 
     /** */
-    private STUNResponse getRouterIP_Port(DatagramSocket aSocket) {
+    private static STUNResponse getRouterIP_Port(DatagramSocket aSocket) {
         NodeInfo[] someNodes = policy.getAllNodeInfo();
-        for (int i = 0; i < someNodes.length; i++) {
-            STUNResponse someResponse = STUNCheckServer.getRouterInetAddr(aSocket, someNodes[i].getIP(), someNodes[i].getSTUNPort1());
+        for (NodeInfo someNode : someNodes) {
+            STUNResponse someResponse = STUNCheckServer.getRouterInetAddr(aSocket, someNode.getIP(), someNode.getSTUNPort1());
             if (someResponse != null) {
                 return someResponse;
             }
@@ -271,7 +271,7 @@ Debug.println("connection timed out");
     }
 
     /** */
-    private STUNCheckServer.StunType getLocalSTUNType() {
+    private static STUNCheckServer.StunType getLocalSTUNType() {
         return policy.getLocalSTUNType();
     }
 
@@ -283,8 +283,8 @@ Debug.println("connection timed out");
     /** */
     static private STUNConnectionResolver getByLocalPort(int port) {
         STUNConnectionResolver someResolver;
-        for (int i = 0; i < resolvers.size(); i++) {
-            someResolver = resolvers.get(i);
+        for (STUNConnectionResolver resolver : resolvers) {
+            someResolver = resolver;
             if (someResolver.getLocalPort() == port) {
                 return someResolver;
             }
@@ -295,7 +295,7 @@ Debug.println("connection timed out");
 
     /** */
     static private STUNConnectionResolver getResolverPattern(ID remoteID, int localPort, int remotePort) {
-Debug.println("getResolverPattern :" + remoteID + " -> localhost:" + localPort);
+logger.log(Level.INFO, "getResolverPattern :" + remoteID + " -> localhost:" + localPort);
         STUNConnectionResolver someResolver;
         if (localPort > 0 && (someResolver = getByLocalPort(localPort)) != null) {
             return someResolver;
@@ -323,11 +323,10 @@ Debug.println("getResolverPattern :" + remoteID + " -> localhost:" + localPort);
         switch (message.getData()[1]) {
         case CONNECTIONREQUEST:
             try {
-                    someResolver.handleConnectionRequest(message);
-                } catch (IOException e) {
-                    // TODO Auto-generated catch block
-                    e.printStackTrace();
-                }
+                someResolver.handleConnectionRequest(message);
+            } catch (IOException e) {
+                logger.log(Level.ERROR, e.getMessage(), e);
+            }
             break;
         case CONNECTTO:
             someResolver.handleConnectTo(message);
@@ -335,5 +334,3 @@ Debug.println("getResolverPattern :" + remoteID + " -> localhost:" + localPort);
         }
     }
 }
-
-/* */

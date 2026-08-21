@@ -2,14 +2,14 @@
 package vavi.apps.docopin.jmf;
 
 /**
- * JMFクラスインターフェイス
+ * JMF繧ｯ繝ｩ繧ｹ繧､繝ｳ繧ｿ繝ｼ繝輔ぉ繧､繧ｹ
  * 
  * $Id: MediaController.java,v 1.1 2003/01/17 14:56:32 matsu Exp $
  */
 
 interface MediaController {
 
-    public void startPlayer();
+    void startPlayer();
 
-    public void stopPlayer();
+    void stopPlayer();
 }

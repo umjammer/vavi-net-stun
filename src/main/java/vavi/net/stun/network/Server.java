@@ -7,9 +7,9 @@
 package vavi.net.stun.network;
 
 import java.io.IOException;
+import java.lang.System.Logger;
+import java.lang.System.Logger.Level;
 import java.net.ServerSocket;
-
-import vavi.util.Debug;
 
 
 /**
@@ -17,14 +17,17 @@ import vavi.util.Debug;
  * Created on 2003/06/29
  */
 public class Server extends Thread {
+
+    private static final Logger logger = System.getLogger(Server.class.getName());
+
     /** */
     public static int DEFAULTPORT = 22222;
 
     /** */
-    private ServerSocket serverSocket;
+    private final ServerSocket serverSocket;
 
     /** */
-    private NetworkEventHandler handler;
+    private final NetworkEventHandler handler;
 
     /** */
     public Server(NetworkEventHandler handler, int port) throws IOException {
@@ -38,17 +41,16 @@ public class Server extends Thread {
     }
 
     /** */
+    @Override
     public void run() {
-Debug.println("server started: " + getName() + ": " + serverSocket);
-Debug.println("handler: " + handler);
+logger.log(Level.INFO, "server started: " + getName() + ": " + serverSocket);
+logger.log(Level.INFO, "handler: " + handler);
         while (true) {
             try {
                 new Connection(handler, serverSocket.accept(), getName() + ": " + serverSocket);
             } catch (Exception e) {
-                Debug.printStackTrace(e);
+                logger.log(Level.ERROR, e.getMessage(), e);
             }
         }
     }
 }
-
-/* */

@@ -9,12 +9,12 @@ package vavi.net.stun.network;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.lang.System.Logger;
+import java.lang.System.Logger.Level;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-
-import vavi.util.Debug;
 
 
 /**
@@ -22,14 +22,17 @@ import vavi.util.Debug;
  * Created on 2003/06/29
  */
 public class Connection {
-    /** */
-    private DataInputStream inputStream;
+
+    private static final Logger logger = System.getLogger(Connection.class.getName());
 
     /** */
-    private DataOutputStream outputStream;
+    private final DataInputStream inputStream;
 
     /** */
-    private Socket socket;
+    private final DataOutputStream outputStream;
+
+    /** */
+    private final Socket socket;
 
     /** */
     public enum Type {
@@ -42,19 +45,19 @@ public class Connection {
     }
 
     /** */
-    private Type connectionType;
+    private final Type connectionType;
 
     /** */
-    private NetworkEventHandler handler;
+    private final NetworkEventHandler handler;
 
     /** */
-    private ExecutorService service = Executors.newSingleThreadExecutor();
+    private final ExecutorService service = Executors.newSingleThreadExecutor();
 
     /** */
     private String name;
 
     /**
-     * {@link NetworkEventHandler#onConnectionEstablished(Connection)} が発行されます。
+     * {@link NetworkEventHandler#onConnectionEstablished(Connection)} 縺檎匱陦後＆繧後∪縺吶�
      */
     public Connection(NetworkEventHandler handler, InetAddress host, int port, Type connectionType) throws IOException {
         this.handler = handler;
@@ -69,7 +72,7 @@ public class Connection {
 
     /**
      * called by Server.
-     * {@link NetworkEventHandler#onConnectionEstablished(Connection)} が発行されます。
+     * {@link NetworkEventHandler#onConnectionEstablished(Connection)} 縺檎匱陦後＆繧後∪縺吶�
      */
     public Connection(NetworkEventHandler handler, Socket socket, String name) throws IOException {
         this.handler = handler;
@@ -78,7 +81,7 @@ public class Connection {
         this.outputStream = new DataOutputStream(socket.getOutputStream());
         this.connectionType = Type.values()[inputStream.readInt()];
 setName(name + ": " + this);
-Debug.println("accepted a socket: " + name + ": " + socket);
+logger.log(Level.INFO, "accepted a socket: " + name + ": " + socket);
         handler.onConnectionEstablished(this);
     }
 
@@ -88,14 +91,15 @@ Debug.println("accepted a socket: " + name + ": " + socket);
     }
 
     /** */
-    private Runnable server = new Runnable() {
+    private final Runnable server = new Runnable() {
+        @Override
         public void run() {
             try {
                 while (true) {
                     byte[] buffer = new byte[2048];
                     int length = inputStream.read(buffer);
                     if (length < 0) {
-Debug.println("got eof: " + name);
+logger.log(Level.INFO, "got eof: " + name);
                         break;
                     } else {
                         byte[] received = new byte[length];
@@ -104,14 +108,14 @@ Debug.println("got eof: " + name);
                     }
                 }
             } catch (Exception e) {
-                Debug.println(name + ": " + e);
+                logger.log(Level.INFO, name + ": " + e);
             } finally {
                 try {
                     close();
-Debug.println("connection closed: " + name + ": " + socket);
+logger.log(Level.INFO, "connection closed: " + name + ": " + socket);
                     handler.onDisconnect(Connection.this);
                 } catch (IOException f) {
-Debug.printStackTrace(f);
+logger.log(Level.ERROR, f.getMessage(), f);
                 }
             }
         }
@@ -148,7 +152,7 @@ Debug.printStackTrace(f);
 
     /** */
     public void start() {
-Debug.printStackTrace(new Exception("*** DUMMY ***"));
+new Exception("*** DUMMY ***").printStackTrace(System.err);
         service.execute(server);
     }
 
@@ -162,5 +166,3 @@ Debug.printStackTrace(new Exception("*** DUMMY ***"));
         return socket + ":" + connectionType;
     }
 }
-
-/* */

@@ -21,5 +21,3 @@ public interface Peer {
     /** */
     void setName(String name);
 }
-
-/* */

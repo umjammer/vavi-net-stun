@@ -20,25 +20,25 @@ import vavi.net.stun.messaging.ID;
  */
 public class DatagramConnection {
     /** */
-    private DatagramSocket socket;
+    private final DatagramSocket socket;
 
     /** */
-    private InetAddress destinationAddress;
+    private final InetAddress destinationAddress;
 
     /** */
-    private int destinationPort;
+    private final int destinationPort;
 
     /** */
-    private ID id;
+    private final ID id;
 
     /** */
-    private byte[] buffer = new byte[1500];
+    private final byte[] buffer = new byte[1500];
 
     /** */
-    private DatagramPacket receivePacket;
+    private final DatagramPacket receivePacket;
 
     /** */
-    private DatagramPacket sendPacket;
+    private final DatagramPacket sendPacket;
 
     /** */
     public DatagramConnection(DatagramSocket socket, ID remoteID, InetAddress remoteAddr, int remotePort) {
@@ -102,5 +102,3 @@ public class DatagramConnection {
         }
     }
 }
-
-/* */

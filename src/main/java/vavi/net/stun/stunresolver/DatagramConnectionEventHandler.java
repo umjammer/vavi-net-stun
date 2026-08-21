@@ -20,5 +20,3 @@ public interface DatagramConnectionEventHandler {
     /** */
     void onDatagramConnectionFailed(ID id);
 }
-
-/* */

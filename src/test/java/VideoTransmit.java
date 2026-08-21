@@ -45,11 +45,11 @@ public class VideoTransmit implements ControllerListener {
 
     // Input MediaLocator
     // Can be a file or http or capture source
-    private MediaLocator locator;
+    private final MediaLocator locator;
 
-    private String ipAddress;
+    private final String ipAddress;
 
-    private String port;
+    private final String port;
 
     private Processor processor = null;
 
@@ -114,7 +114,7 @@ public class VideoTransmit implements ControllerListener {
         }
     }
 
-    void Fatal(String s) {
+    static void Fatal(String s) {
         // Applications will make various choices about what
         // to do here. We print a message
         System.err.println("FATAL ERROR: " + s);
@@ -125,26 +125,26 @@ public class VideoTransmit implements ControllerListener {
      * Setting the encoding quality to the specified value on the JPEG encoder.
      * 0.5 is a good default.
      */
-    void setJPEGQuality(Player p, float val) {
+    static void setJPEGQuality(Player p, float val) {
 
-        Control cs[] = p.getControls();
+        Control[] cs = p.getControls();
         QualityControl qc = null;
         VideoFormat jpegFmt = new VideoFormat(VideoFormat.JPEG);
 
         // Loop through the controls to find the Quality control for
         // the JPEG encoder.
-        for (int i = 0; i < cs.length; i++) {
+        for (Control c : cs) {
 
-            if (cs[i] instanceof QualityControl && cs[i] instanceof Owned) {
-                Object owner = ((Owned) cs[i]).getOwner();
+            if (c instanceof QualityControl && c instanceof Owned) {
+                Object owner = ((Owned) c).getOwner();
 
                 // Check to see if the owner is a Codec.
                 // Then check for the output format.
                 if (owner instanceof Codec) {
-                    Format fmts[] = ((Codec) owner).getSupportedOutputFormats(null);
-                    for (int j = 0; j < fmts.length; j++) {
-                        if (fmts[j].matches(jpegFmt)) {
-                            qc = (QualityControl) cs[i];
+                    Format[] fmts = ((Codec) owner).getSupportedOutputFormats(null);
+                    for (Format fmt : fmts) {
+                        if (fmt.matches(jpegFmt)) {
+                            qc = (QualityControl) c;
                             qc.setQuality(val);
                             System.out.println("- Setting quality to " + val + " on " + qc);
                             break;
@@ -158,99 +158,100 @@ public class VideoTransmit implements ControllerListener {
     }
 
     // /////////// ControllerListener ////////////////////
+    @Override
     public synchronized void controllerUpdate(ControllerEvent event) {
         if (processor == null)
             return;
 
         System.out.println("ControllerEvent: " + event.toString());
-        if (event instanceof ConfigureCompleteEvent) {
-            // Get the tracks from the processor
-            TrackControl[] tracks = processor.getTrackControls();
+        switch (event) {
+            case ConfigureCompleteEvent configureCompleteEvent -> {
+                // Get the tracks from the processor
+                TrackControl[] tracks = processor.getTrackControls();
 
-            // Do we have atleast one track?
-            if (tracks == null || tracks.length < 1)
-                Fatal("Couldn't find tracks in processor");
+                // Do we have atleast one track?
+                if (tracks == null || tracks.length < 1)
+                    Fatal("Couldn't find tracks in processor");
 
-            boolean programmed = false;
+                boolean programmed = false;
 
-            // Search through the tracks for a video track
-            for (int i = 0; i < tracks.length; i++) {
-                Format format = tracks[i].getFormat();
-                if (tracks[i].isEnabled() && format instanceof VideoFormat && !programmed) {
+                // Search through the tracks for a video track
+                for (TrackControl track : tracks) {
+                    Format format = track.getFormat();
+                    if (track.isEnabled() && format instanceof VideoFormat && !programmed) {
 
-                    // Found a video track. Try to program it to output JPEG/RTP
-                    // Make sure the sizes are multiple of 8's.
-                    Dimension size = ((VideoFormat) format).getSize();
-                    float frameRate = ((VideoFormat) format).getFrameRate();
-                    int w = (size.width % 8 == 0 ? size.width : (size.width / 8) * 8);
-                    int h = (size.height % 8 == 0 ? size.height : (size.height / 8) * 8);
-                    VideoFormat jpegFormat = new VideoFormat(VideoFormat.JPEG_RTP, new Dimension(w, h), Format.NOT_SPECIFIED, Format.byteArray, frameRate);
-                    tracks[i].setFormat(jpegFormat);
-                    System.out.println("Video will be transmitted as:");
-                    System.out.println("  " + jpegFormat);
-                    // Assume succesful
-                    programmed = true;
-                } else
-                    tracks[i].setEnabled(false);
+                        // Found a video track. Try to program it to output JPEG/RTP
+                        // Make sure the sizes are multiple of 8's.
+                        Dimension size = ((VideoFormat) format).getSize();
+                        float frameRate = ((VideoFormat) format).getFrameRate();
+                        int w = (size.width % 8 == 0 ? size.width : (size.width / 8) * 8);
+                        int h = (size.height % 8 == 0 ? size.height : (size.height / 8) * 8);
+                        VideoFormat jpegFormat = new VideoFormat(VideoFormat.JPEG_RTP, new Dimension(w, h), Format.NOT_SPECIFIED, Format.byteArray, frameRate);
+                        track.setFormat(jpegFormat);
+                        System.out.println("Video will be transmitted as:");
+                        System.out.println("  " + jpegFormat);
+                        // Assume succesful
+                        programmed = true;
+                    } else
+                        track.setEnabled(false);
+                }
+
+                if (!programmed)
+                    Fatal("Couldn't find video track");
+
+                // Set the output content descriptor to RAW_RTP
+                ContentDescriptor cd = new ContentDescriptor(ContentDescriptor.RAW_RTP);
+                processor.setContentDescriptor(cd);
+                // Realize the processor. This will internally create a flow
+                // graph and attempt to create an output datasource for JPEG/RTP
+                // video frames.
+                processor.realize();
             }
+            case RealizeCompleteEvent realizeCompleteEvent -> {
+                // Set the JPEG quality to .5.
+                setJPEGQuality(processor, 0.5f);
+                // Get the output data source of the processor
+                dataOutput = processor.getDataOutput();
+                // Create a media locator for the RTP data sink.
+                // For example:
+                // rtp://192.168.1.100:42050/video
+                String rtpURL = "rtp://" + ipAddress + ":" + port + "/video";
+                MediaLocator outputLocator = new MediaLocator(rtpURL);
 
-            if (!programmed)
-                Fatal("Couldn't find video track");
-
-            // Set the output content descriptor to RAW_RTP
-            ContentDescriptor cd = new ContentDescriptor(ContentDescriptor.RAW_RTP);
-            processor.setContentDescriptor(cd);
-            // Realize the processor. This will internally create a flow
-            // graph and attempt to create an output datasource for JPEG/RTP
-            // video frames.
-            processor.realize();
-
-        } else if (event instanceof RealizeCompleteEvent) {
-            // Set the JPEG quality to .5.
-            setJPEGQuality(processor, 0.5f);
-            // Get the output data source of the processor
-            dataOutput = processor.getDataOutput();
-            // Create a media locator for the RTP data sink.
-            // For example:
-            // rtp://192.168.1.100:42050/video
-            String rtpURL = "rtp://" + ipAddress + ":" + port + "/video";
-            MediaLocator outputLocator = new MediaLocator(rtpURL);
-
-            // Create a data sink, open it and start transmission. It will wait
-            // for the processor to start sending data. So we need to start the
-            // output data source of the processor. We also need to start the
-            // processor itself.
-            try {
-                rtptransmitter = Manager.createDataSink(dataOutput, outputLocator);
-                rtptransmitter.open();
-                rtptransmitter.start();
-                dataOutput.start();
-            } catch (MediaException me) {
-                Fatal("Couldn't create RTP data sink");
-            } catch (IOException ioe) {
-                Fatal("Couldn't create RTP data sink");
+                // Create a data sink, open it and start transmission. It will wait
+                // for the processor to start sending data. So we need to start the
+                // output data source of the processor. We also need to start the
+                // processor itself.
+                try {
+                    rtptransmitter = Manager.createDataSink(dataOutput, outputLocator);
+                    rtptransmitter.open();
+                    rtptransmitter.start();
+                    dataOutput.start();
+                } catch (MediaException | IOException me) {
+                    Fatal("Couldn't create RTP data sink");
+                }
+                processor.prefetch();
             }
-            processor.prefetch();
-
-        } else if (event instanceof PrefetchCompleteEvent) {
-            processor.start();
-
-        } else if (event instanceof EndOfMediaEvent) {
-            processor.setMediaTime(new Time(0));
-            processor.start();
-
-        } else if (event instanceof ControllerErrorEvent) {
-            processor = null;
-            Fatal(((ControllerErrorEvent) event).getMessage());
-
-        } else if (event instanceof ControllerClosedEvent) {
+            case PrefetchCompleteEvent prefetchCompleteEvent -> processor.start();
+            case EndOfMediaEvent endOfMediaEvent -> {
+                processor.setMediaTime(new Time(0));
+                processor.start();
+            }
+            case ControllerErrorEvent controllerErrorEvent -> {
+                processor = null;
+                Fatal(controllerErrorEvent.getMessage());
+            }
+            case ControllerClosedEvent controllerClosedEvent -> {
+            }
+            default -> {
+            }
         }
     }
 
     /**
      * Sample Usage for VideoTransmit class
      */
-    public static void main(String[] args) {
+    static void main(String[] args) {
         // We need three parameters to do the transmission
         // For example,
         // java VideoTransmit file:/C:/media/test.mov 192.168.1.100 22044

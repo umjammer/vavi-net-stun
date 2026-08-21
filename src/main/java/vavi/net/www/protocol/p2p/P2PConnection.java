@@ -25,5 +25,3 @@ public abstract class P2PConnection {
     /** unicast */
     public abstract OutputStream getOutputStream() throws IOException;
 }
-
-/* */

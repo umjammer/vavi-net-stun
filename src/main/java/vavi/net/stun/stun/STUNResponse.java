@@ -15,14 +15,14 @@ import java.net.InetAddress;
  */
 public class STUNResponse {
     /** */
-    private InetAddress localIp;
+    private final InetAddress localIp;
     /** */
-    private InetAddress remoteIp;
+    private final InetAddress remoteIp;
 
     /** */
-    private int localPort;
+    private final int localPort;
     /** */
-    private int remotePort;
+    private final int remotePort;
 
     /** */
     public STUNResponse(InetAddress localIp, int localPort, InetAddress remoteIp, int remotePort) {
@@ -57,5 +57,3 @@ public class STUNResponse {
         return "Router[" + localIp.getCanonicalHostName() + ":" + localPort + "] Server[" + remoteIp.getCanonicalHostName() + ":" + remotePort + "]";
     }
 }
-
-/* */

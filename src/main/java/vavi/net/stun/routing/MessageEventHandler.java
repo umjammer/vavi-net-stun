@@ -21,13 +21,11 @@ import vavi.net.stun.network.Connection;
  */
 public interface MessageEventHandler {
     /** */
-    public void onMessageArrived(Connection connection, Message message) throws IOException;
+    void onMessageArrived(Connection connection, Message message) throws IOException;
 
     /** */
-    public void onConnectionEstablished(Connection connection, ID id, NodeInfo nodeInfo) throws IOException;
+    void onConnectionEstablished(Connection connection, ID id, NodeInfo nodeInfo) throws IOException;
 
     /** */
-    public void onDisconnect(Connection connection) throws IOException;
+    void onDisconnect(Connection connection) throws IOException;
 }
-
-/* */

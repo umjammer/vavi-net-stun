@@ -2,7 +2,7 @@
 package vavi.apps.docopin.jmf;
 
 /**
- * ストリーミング送信クラス
+ * 繧ｹ繝医Μ繝ｼ繝溘Φ繧ｰ騾∽ｿ｡繧ｯ繝ｩ繧ｹ
  * 
  * $Id: TransmitControl.java,v 1.11 2003/01/27 19:05:43 matsu Exp $
  */
@@ -23,6 +23,8 @@ import javax.media.format.VideoFormat;
 import javax.media.protocol.ContentDescriptor;
 import javax.media.protocol.DataSource;
 
+import vavi.util.Debug;
+
 
 public class TransmitControl implements MediaController {
 
@@ -36,7 +38,7 @@ public class TransmitControl implements MediaController {
 
     private static Format[] formats;
 
-    private ContentDescriptor descriptor = new ContentDescriptor(ContentDescriptor.RAW_RTP);
+    private final ContentDescriptor descriptor = new ContentDescriptor(ContentDescriptor.RAW_RTP);
 
     /**
      * Creates a new transmitter frame.
@@ -71,7 +73,7 @@ public class TransmitControl implements MediaController {
             err("6");
 
         } catch (Exception e) {
-            System.err.println(e.toString());
+            System.err.println(e);
         }
     }
 
@@ -96,22 +98,22 @@ public class TransmitControl implements MediaController {
                 formats = new Format[] {
                     new VideoFormat(VideoFormat.JPEG_RTP)
                 };
-                // formats = new Format[] { new VideoFormat(VideoFormat.MPEG_RTP)};
-                // formats = new Format[] { new VideoFormat(VideoFormat.JPEG)};
+                //formats = new Format[] {new VideoFormat(VideoFormat.MPEG_RTP)};
+                //formats = new Format[] {new VideoFormat(VideoFormat.JPEG)};
                 media_type = "video";
             }
         }
 
         // rtp://hostname:port/type
 
-        Vector<?> list = new Vector<Object>();
+        Vector<?> list = new Vector<>();
 
         if (media_type.equals("video")) {
             list = CaptureDeviceManager.getDeviceList(new VideoFormat(VideoFormat.YUV));
         } else if (media_type.equals("audio")) {
             list = CaptureDeviceManager.getDeviceList(new AudioFormat(AudioFormat.LINEAR));
         }
-        if (list.size() > 0) {
+        if (!list.isEmpty()) {
             System.out.println("DEVICE NUM======" + list.size());
             CaptureDeviceInfo info = (CaptureDeviceInfo) list.elementAt(0);
             return info.getLocator();
@@ -121,6 +123,7 @@ public class TransmitControl implements MediaController {
     }
 
     /** Starts transmitting the media. */
+    @Override
     public void startPlayer() {
         err("startPlayer()");
         try {
@@ -133,11 +136,12 @@ public class TransmitControl implements MediaController {
             err("s4");
         } catch (IOException ioe) {
             err("e1");
-            ioe.printStackTrace();
+            Debug.printStackTrace(ioe);
         }
     }
 
     /** Stop transmitting the media. */
+    @Override
     public void stopPlayer() {
 
         try {
@@ -145,7 +149,7 @@ public class TransmitControl implements MediaController {
             dataSink.close();
             dataSink.stop();
         } catch (IOException ioe) {
-            ioe.printStackTrace();
+            Debug.printStackTrace(ioe);
         }
     }
 

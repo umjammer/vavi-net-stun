@@ -7,8 +7,9 @@
 package vavi.net.stun.network;
 
 import java.io.IOException;
+import java.lang.System.Logger;
+import java.lang.System.Logger.Level;
 
-import vavi.util.Debug;
 import vavi.util.StringUtil;
 
 
@@ -17,20 +18,24 @@ import vavi.util.StringUtil;
  * Created on 2003/07/01
  */
 public class NullNetworkEventHandler implements NetworkEventHandler {
+
+    private static final Logger logger = System.getLogger(NullNetworkEventHandler.class.getName());
+
     /** */
+    @Override
     public void onConnectionEstablished(Connection connection) throws IOException {
-Debug.println(connection);
+logger.log(Level.INFO, connection);
     }
 
     /** */
+    @Override
     public void onPacketArrived(Connection connection, byte[] data) throws IOException {
-Debug.println(connection + ": " + StringUtil.getDump(data));
+logger.log(Level.INFO, connection + ": " + StringUtil.getDump(data));
     }
 
     /** */
+    @Override
     public void onDisconnect(Connection connection) throws IOException {
-Debug.println(connection);
+logger.log(Level.INFO, connection);
     }
 }
-
-/* */

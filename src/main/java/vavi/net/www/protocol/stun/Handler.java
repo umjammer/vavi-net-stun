@@ -7,6 +7,7 @@
 package vavi.net.www.protocol.stun;
 
 import java.io.IOException;
+import java.net.URI;
 import java.net.URL;
 import java.net.URLConnection;
 import java.net.URLStreamHandler;
@@ -29,7 +30,7 @@ import vavi.net.stun.stun.STUNCheckServer.StunType;
 public final class Handler extends URLStreamHandler {
 
     /** */
-    private List<NodeInfo> nodeInfos = new ArrayList<NodeInfo>();
+    private final List<NodeInfo> nodeInfos = new ArrayList<>();
 
     /** */
     private String id;
@@ -38,7 +39,8 @@ public final class Handler extends URLStreamHandler {
     private StunType type;
 
     /** */
-    protected void parseURL(URL url, String spec, int start, int limit) { 
+    @Override
+    protected void parseURL(URL url, String spec, int start, int limit) {
 System.err.println("spec: " + spec);
         String protocol = spec.substring(0, start - 1);
 System.err.println("protocol: " + protocol);
@@ -82,15 +84,16 @@ System.err.println("type: " + type);
     } 
 
     /** */
-    protected URLConnection openConnection(URL url) 
+    @Override
+    protected URLConnection openConnection(URL url)
         throws IOException {
 
         URLConnection uc = null;
 
         if (type == null) {
-            uc = new StunURLConnection(url, id, nodeInfos.toArray(new NodeInfo[nodeInfos.size()]));
+            uc = new StunURLConnection(url, id, nodeInfos.toArray(NodeInfo[]::new));
         } else {
-            uc = new StunURLConnection(url, id, nodeInfos.toArray(new NodeInfo[nodeInfos.size()]), type);
+            uc = new StunURLConnection(url, id, nodeInfos.toArray(NodeInfo[]::new), type);
         }
 
         return uc;
@@ -99,10 +102,8 @@ System.err.println("type: " + type);
     //----
 
     /** */
-    public static void main(String[] args) throws Exception {
-        URLConnection uc = new URL(args[0]).openConnection();
+    static void main(String[] args) throws Exception {
+        URLConnection uc = URI.create(args[0]).toURL().openConnection();
         ((StunURLConnection) uc).connect("server");
     }
 }
-
-/* */

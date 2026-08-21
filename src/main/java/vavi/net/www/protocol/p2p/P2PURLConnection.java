@@ -24,7 +24,7 @@ public abstract class P2PURLConnection extends URLConnection {
     }
 
     /** */
-    protected P2PConnectionSupport connectionSupport = new P2PConnectionSupport();
+    protected final P2PConnectionSupport connectionSupport = new P2PConnectionSupport();
 
     /** */
     public void addP2PConnectionListener(P2PConnectionListener connectionListener) {
@@ -36,5 +36,3 @@ public abstract class P2PURLConnection extends URLConnection {
         connectionSupport.removeP2PConnectionListener(connectionListener);
     }
 }
-
-/* */

@@ -23,19 +23,19 @@ import java.util.StringTokenizer;
  */
 public class NodeInfo {
     /** */
-    private InetAddress ipAddress;
+    private final InetAddress ipAddress;
 
     /** */
-    private int tcpConnectionPort;
+    private final int tcpConnectionPort;
 
     /** */
-    private int udpServerListPort;
+    private final int udpServerListPort;
 
     /** */
-    private int udpSTUNPort1;
+    private final int udpSTUNPort1;
 
     /** */
-    private int udpSTUNPort2;
+    private final int udpSTUNPort2;
 
     /** */
     private static final String DELIMITER = ":";
@@ -64,10 +64,9 @@ public class NodeInfo {
 
     /** */
     public boolean equals(Object object) {
-        if (!(object instanceof NodeInfo)) {
+        if (!(object instanceof NodeInfo someNodeInfo)) {
             return false;
         }
-        NodeInfo someNodeInfo = (NodeInfo) object;
         return ipAddress.equals(someNodeInfo.ipAddress) &&
                tcpConnectionPort == someNodeInfo.tcpConnectionPort &&
                udpServerListPort == someNodeInfo.udpServerListPort &&
@@ -125,12 +124,8 @@ public class NodeInfo {
             int stunPort2 = Integer.parseInt(st.nextToken());
             NodeInfo someNodeInfo = new NodeInfo(ip, tcpPort, udpServerListPort, stunPort1, stunPort2);
             return someNodeInfo;
-        } catch (UnknownHostException e) {
-            throw (RuntimeException) new IllegalArgumentException(nodeInfo).initCause(e);
-        } catch (NumberFormatException e) {
+        } catch (UnknownHostException | NumberFormatException e) {
             throw (RuntimeException) new IllegalArgumentException(nodeInfo).initCause(e);
         }
     }
 }
-
-/* */

@@ -7,6 +7,8 @@
 package vavi.net.stun.routing;
 
 import java.io.IOException;
+import java.lang.System.Logger;
+import java.lang.System.Logger.Level;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Collection;
@@ -24,7 +26,6 @@ import vavi.net.stun.stun.STUNCheckServer;
 import vavi.net.stun.stunresolver.ConnectionResolver;
 import vavi.net.stun.stunresolver.DatagramConnection;
 import vavi.net.stun.stunresolver.DatagramConnectionEventHandler;
-import vavi.util.Debug;
 import vavi.util.StringUtil;
 
 
@@ -37,14 +38,16 @@ import vavi.util.StringUtil;
 public abstract class RoutingPolicy
     implements DatagramConnectionEventHandler, MessageEventHandler {
 
-    /** */
-    private Node node;
+    private static final Logger logger = System.getLogger(RoutingPolicy.class.getName());
 
     /** */
-    private STUNCheckServer.StunType stunType;
+    private final Node node;
 
     /** */
-    private ConnectionResolver resolver;
+    private final STUNCheckServer.StunType stunType;
+
+    /** */
+    private final ConnectionResolver resolver;
 
     /** */
     public RoutingPolicy(Node node, STUNCheckServer.StunType stunType) {
@@ -78,11 +81,13 @@ public abstract class RoutingPolicy
     }
 
     /** */
+    @Override
     public void onDatagramConnectionEstablished(DatagramConnection connection) {
         node.onDatagramConnectionEstablished(connection);
     }
 
     /** */
+    @Override
     public void onDatagramConnectionFailed(ID id) {
         node.onDatagramConnectionFailed(id);
     }
@@ -105,24 +110,25 @@ public abstract class RoutingPolicy
     public abstract NodeInfo getLocalNodeInfo();
 }
 
-/* */
-
 
 /**
  * ChildNodeRouting.
  */
 class ChildNodeRoutingPolicy extends RoutingPolicy {
+
+    private static final Logger logger = System.getLogger(ChildNodeRoutingPolicy.class.getName());
+
     /** */
     private Connection serverConnection;
 
     /** */
-    private NetworkMessageBridge bridge;
+    private final NetworkMessageBridge bridge;
 
     /** */
-    private NodeInfo[] serverInfos;
+    private final NodeInfo[] serverInfos;
 
     /** */
-    private ConnectionResolver resolver;
+    private final ConnectionResolver resolver;
 
     /** */
     public ChildNodeRoutingPolicy(Node node, NodeInfo[] servers, STUNCheckServer.StunType stunType) {
@@ -134,12 +140,13 @@ class ChildNodeRoutingPolicy extends RoutingPolicy {
     }
 
     /** */
+    @Override
     public ID getServerIDAtRandom() {
         throw new UnsupportedOperationException("don't call this method!!");
     }
 
     /**
-     * @throws IllegalStateException ÉTÅ[ÉoÉmÅ[ÉhÇ™àÍÇ¬Ç‡ë∂ç›ÇµÇ»Ç¢èÍçá
+     * @throws IllegalStateException „Çµ„Éº„Éê„Éé„Éº„Éâ„Åå‰∏Ä„Å§„ÇÇÂ≠òÂú®„Åó„Å™„ÅÑÂ†¥Âêà
      */
     private void connectToServer(NodeInfo[] servers) {
         for (NodeInfo server : servers) {
@@ -148,13 +155,14 @@ class ChildNodeRoutingPolicy extends RoutingPolicy {
                 serverConnection.setName("ChildNodeRoutingPolicy: " + serverConnection);
                 return;
             } catch (IOException e) {
-                Debug.println(server + " is not alive.");
+                logger.log(Level.ERROR, server + " is not alive.", e);
             }
         }
         throw new IllegalStateException("couldn't connect to a server node!!!");
     }
 
     /** */
+    @Override
     public void onConnectionEstablished(Connection connection, ID id, NodeInfo nodeInfo) throws IOException {
         if (connection.getConnectionType().equals(Connection.Type.SERVER)) {
             connection.close();
@@ -164,14 +172,16 @@ class ChildNodeRoutingPolicy extends RoutingPolicy {
     }
 
     /** */
+    @Override
     public void onDisconnect(Connection aConnection) {
         // /implement!!
         // needs to implement recovery method;
     }
 
     /** */
+    @Override
     public void onMessageArrived(Connection connection, Message message) {
-Debug.println("new message!!:\n" + StringUtil.getDump(message.getData()));
+logger.log(Level.INFO, "new message!!:\n" + StringUtil.getDump(message.getData()));
         if (message.isControlMessage()) {
             resolver.onControlMessageArrived(message);
         } else if (message.isGeneralMessage()) {
@@ -180,17 +190,20 @@ Debug.println("new message!!:\n" + StringUtil.getDump(message.getData()));
     }
 
     /** */
+    @Override
     public void sendMessage(Message message) throws IOException {
-//Debug.println(message);
+//logger.log(Level.INFO, message);
         serverConnection.write(message.toBytes());
     }
 
     /** */
+    @Override
     public NodeInfo[] getAllNodeInfo() {
         return serverInfos;
     }
 
     /** */
+    @Override
     public NodeInfo getLocalNodeInfo() {
         try {
             return new NodeInfo(InetAddress.getLocalHost(), 0, 0, 0, 0);
@@ -200,40 +213,40 @@ Debug.println("new message!!:\n" + StringUtil.getDump(message.getData()));
     }
 }
 
-/* */
-
 
 /**
- * ÉOÉçÅ[ÉoÉãÉAÉhÉåÉXÇ≈ãNìÆÇµÇΩÉmÅ[ÉhÇ≈égópÇ≥ÇÍÇÈÉãÅ[ÉeÉBÉìÉOÉ|ÉäÉVÅ[ÉNÉâÉXÇ≈Ç∑ÅB
+ * „Ç∞„É≠„Éº„Éê„É´„Ç¢„Éâ„É¨„Çπ„ÅßËµ∑Âãï„Åó„Åü„Éé„Éº„Éâ„Åß‰ΩøÁî®„Åï„Çå„Çã„É´„Éº„ÉÜ„Ç£„É≥„Ç∞„Éù„É™„Ç∑„Éº„ÇØ„É©„Çπ„Åß„Åô„ÄÇ
  *
  * BasicRoutingPolicy.
  */
 class BasicRoutingPolicy extends RoutingPolicy
     implements MessageEventHandler {
 
-    /** */
-    private Map<ID, Connection> serverNodes = new HashMap<ID, Connection>();
+    private static final Logger logger = System.getLogger(BasicRoutingPolicy.class.getName());
 
     /** */
-    private Map<ID, Connection> childNodes = new HashMap<ID, Connection>();
+    private final Map<ID, Connection> serverNodes = new HashMap<>();
 
     /** */
-    private NetworkMessageBridge bridge;
+    private final Map<ID, Connection> childNodes = new HashMap<>();
+
+    /** */
+    private final NetworkMessageBridge bridge;
 
     /** */
     private Server localServer;
 
     /** */
-    private Map<Connection, NodeInfo> serverInfos = new HashMap<Connection, NodeInfo>();
+    private final Map<Connection, NodeInfo> serverInfos = new HashMap<>();
 
     /** */
-    private NodeInfoServer nodeInfoServer;
+    private final NodeInfoServer nodeInfoServer;
 
     /** */
-    private STUNCheckServer stunServer;
+    private final STUNCheckServer stunServer;
 
     /** */
-    private ConnectionResolver resolver;
+    private final ConnectionResolver resolver;
 
     /** */
     private static final int DEFAULTPORT = 2000;
@@ -243,13 +256,13 @@ class BasicRoutingPolicy extends RoutingPolicy
      */
     public BasicRoutingPolicy(Node node, NodeInfo[] servers, STUNCheckServer.StunType stunType) {
         super(node, stunType);
-Debug.println("test: " + servers.length);
+logger.log(Level.INFO, "test: " + servers.length);
         NodeInfo[] someNodeInfo = servers;
         this.bridge = new NetworkMessageBridge(this);
         try {
             this.localServer = new Server(bridge, DEFAULTPORT);
         } catch (IOException e) {
-Debug.println("could not bind default port(" + DEFAULTPORT + "), trying other port");
+logger.log(Level.INFO, "could not bind default port(" + DEFAULTPORT + "), trying other port");
             try {
                 this.localServer = new Server(bridge, 0);
             } catch (IOException f) {
@@ -269,20 +282,20 @@ Debug.println("could not bind default port(" + DEFAULTPORT + "), trying other po
                 Connection connection = new Connection(bridge, someNodeInfo[i].getIP(), someNodeInfo[i].getTCPConnectionPort(), Connection.Type.SERVER);
                 connection.setName("BasicRoutingPolicy[" + i + "]: " + connection);
             } catch (IOException e) {
-                Debug.printStackTrace(e);
+                logger.log(Level.ERROR, e.getMessage(), e);
             }
         }
         serverInfos.put(null, getLocalNodeInfo());
     }
 
     /** */
-    private void sendToSelectedHosts(Map<ID, Connection> hosts, byte[] data) {
+    private static void sendToSelectedHosts(Map<ID, Connection> hosts, byte[] data) {
         for (Connection connection : hosts.values()) {
             try {
-Debug.println("sending a message to a host");
+logger.log(Level.INFO, "sending a message to a host");
                 connection.write(data);
             } catch (IOException e) {
-                Debug.printStackTrace(e);
+                logger.log(Level.ERROR, e.getMessage(), e);
             }
         }
     }
@@ -304,13 +317,13 @@ Debug.println("sending a message to a host");
     }
 
     /** */
-    private void sendToAllHostsExcept(Collection<Connection> connections, Connection exceptConnection, byte[] data) {
+    private static void sendToAllHostsExcept(Collection<Connection> connections, Connection exceptConnection, byte[] data) {
         for (Connection connection : connections) {
             if (connection != exceptConnection) {
                 try {
                     connection.write(data);
                 } catch (IOException e) {
-                    Debug.printStackTrace(e);
+                    logger.log(Level.ERROR, e.getMessage(), e);
                 }
             }
         }
@@ -323,13 +336,14 @@ Debug.println("sending a message to a host");
     }
 
     /** */
+    @Override
     public void onMessageArrived(Connection connection, Message message) throws IOException {
-Debug.println("message arrived!!");
+logger.log(Level.INFO, "message arrived!!");
 
         if (message.getDestination().equals(ID.BROADCASTID)) {
             if (childNodes.containsValue(connection)) {
                 // if it's from a child, send it to every one except the source.
-Debug.println("sending to all except...");
+logger.log(Level.INFO, "sending to all except...");
                 sendToAllHostsExcept(connection, message.toBytes());
             } else if (serverNodes.containsValue(connection)) {
                 // if it's from a server, just send it to the children.
@@ -345,11 +359,11 @@ Debug.println("sending to all except...");
             }
         }
         if (message.getDestination().equals(getLocalID()) || message.getDestination().equals(ID.BROADCASTID)) {
-//Debug.println("received a broadcast message");
+//logger.log(Level.INFO, "received a broadcast message");
             if (message.isGeneralMessage()) {
                 getNodeInterface().onMessageArrived(message);
             } else if (message.isSTUNMessage()) {
-Debug.println("a stun message");
+logger.log(Level.INFO, "a stun message");
                 stunServer.handleSTUNMessage(message);
             } else if (message.isControlMessage()) {
                 resolver.onControlMessageArrived(message);
@@ -358,12 +372,13 @@ Debug.println("a stun message");
     }
 
     /** */
+    @Override
     public void onConnectionEstablished(Connection connection, ID id, NodeInfo nodeInfo) {
         if (connection.getConnectionType().equals(Connection.Type.CHILD)) {
-Debug.println("connection established!! child " + id);
+logger.log(Level.INFO, "connection established!! child " + id);
             childNodes.put(id, connection);
         } else {
-Debug.println("connection established!! server " + id);
+logger.log(Level.INFO, "connection established!! server " + id);
             serverNodes.put(id, connection);
             serverInfos.put(connection, nodeInfo);
         }
@@ -371,6 +386,7 @@ Debug.println("connection established!! server " + id);
     }
 
     /** */
+    @Override
     public void onDisconnect(Connection connection) {
         if (connection.getConnectionType().equals(Connection.Type.CHILD)) {
             childNodes.entrySet().remove(connection);
@@ -381,11 +397,12 @@ Debug.println("connection established!! server " + id);
     }
 
     /** */
-    private static Random random = new Random();
+    private static final Random random = new Random();
 
     /** */
+    @Override
     public ID getServerIDAtRandom() {
-        if (serverNodes.size() == 0) {
+        if (serverNodes.isEmpty()) {
             return getLocalID();
         }
         int index = random.nextInt(serverNodes.size());
@@ -393,46 +410,49 @@ Debug.println("connection established!! server " + id);
     }
 
     /** */
-    private void printEntries(Map<ID, Connection> map) {
+    private static void printEntries(Map<ID, Connection> map) {
         for (Object object : map.entrySet()) {
             System.out.println(object);
         }
     }
 
     /** */
+    @Override
     public void sendMessage(Message message) throws IOException {
-Debug.println(message.getMessageContents());
+logger.log(Level.INFO, message.getMessageContents());
         Connection connection = null;
         if (!message.getDestination().equals(ID.BROADCASTID)) {
-Debug.println("check where to send.");
+logger.log(Level.INFO, "check where to send.");
             printEntries(serverNodes);
             if (childNodes.containsKey(message.getDestination())) {
-Debug.println("sending a message to a child");
+logger.log(Level.INFO, "sending a message to a child");
                 connection = childNodes.get(message.getDestination());
                 connection.write(message.toBytes());
             } else if (serverNodes.containsKey(message.getDestination())) {
-Debug.println("sending a message to a server");
+logger.log(Level.INFO, "sending a message to a server");
                 connection = serverNodes.get(message.getDestination());
                 connection.write(message.toBytes());
-// Debug.println("successful");
+// logger.log(Level.INFO, "successful");
             } else {
-Debug.println("sending a message to all servers");
+logger.log(Level.INFO, "sending a message to all servers");
                 sendToAllServers(message.toBytes());
             }
         } else {
-Debug.println("sending broadcast message");
+logger.log(Level.INFO, "sending broadcast message");
             sendToAllServers(message.toBytes());
             sendToAllChildren(message.toBytes());
         }
     }
 
     /** */
+    @Override
     public NodeInfo[] getAllNodeInfo() {
         Collection<NodeInfo> values = serverInfos.values();
-        return values.toArray(new NodeInfo[values.size()]);
+        return values.toArray(NodeInfo[]::new);
     }
 
     /** */
+    @Override
     public NodeInfo getLocalNodeInfo() {
         try {
             return new NodeInfo(InetAddress.getLocalHost(), localServer.getLocalPort(), nodeInfoServer.getPort(), this.stunServer.getPort1(), this.stunServer.getPort2());
@@ -441,5 +461,3 @@ Debug.println("sending broadcast message");
         }
     }
 }
-
-/* */

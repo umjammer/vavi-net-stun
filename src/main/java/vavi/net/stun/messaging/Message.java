@@ -6,7 +6,8 @@
 
 package vavi.net.stun.messaging;
 
-import vavi.util.Debug;
+import java.lang.System.Logger;
+import java.lang.System.Logger.Level;
 
 
 /**
@@ -16,6 +17,9 @@ import vavi.util.Debug;
  * Created on 2003/06/30
  */
 public class Message {
+
+    private static final Logger logger = System.getLogger(Message.class.getName());
+
     /** */
     private ID source;
     /** */
@@ -25,7 +29,7 @@ public class Message {
     private byte[] message;
 
     /** */
-    private Type messageType;
+    private final Type messageType;
 
     /** */
     public enum Type {
@@ -36,7 +40,7 @@ public class Message {
         /** */
         STUN(1);
         /** */
-        int type;
+        final int type;
         /** */
         Type(int type) {
             this.type = type;
@@ -50,7 +54,7 @@ public class Message {
             }
             throw new IllegalArgumentException(String.valueOf(value));
         }
-    };
+    }
 
     /**
      * @param source from
@@ -82,7 +86,7 @@ public class Message {
 
     /** */
     public Message(byte[] rawData) {
-//Debug.println("dump:\n" + StringUtil.getDump(rawData));
+//logger.log(Level.INFO, "dump:\n" + StringUtil.getDump(rawData));
         int payLoadLength = ((rawData[0] & 0xff) << 8) | (rawData[1] & 0xff);
         byte[] data = new byte[payLoadLength];
         System.arraycopy(rawData, 2, data, 0, data.length);
@@ -132,7 +136,7 @@ public class Message {
         int dataLength = messageData.length;
         rawData[0] = (byte) (0xff & (dataLength >> 8));
         rawData[1] = (byte) (0xff & (dataLength));
-Debug.println("message length: " + dataLength + ", 1:" + rawData[0] + ", 2:" + rawData[1]);
+logger.log(Level.INFO, "message length: " + dataLength + ", 1:" + rawData[0] + ", 2:" + rawData[1]);
         System.arraycopy(messageData, 0, rawData, 2, messageData.length);
         return rawData;
     }
@@ -162,5 +166,3 @@ Debug.println("message length: " + dataLength + ", 1:" + rawData[0] + ", 2:" + r
         this.destination = id;
     }
 }
-
-/* */

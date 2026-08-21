@@ -7,13 +7,14 @@
 package vavi.net.stun.routing;
 
 import java.io.IOException;
+import java.lang.System.Logger;
+import java.lang.System.Logger.Level;
 
 import vavi.net.stun.NodeInfo;
 import vavi.net.stun.messaging.ID;
 import vavi.net.stun.messaging.Message;
 import vavi.net.stun.network.Connection;
 import vavi.net.stun.network.NetworkEventHandler;
-import vavi.util.Debug;
 
 
 /**
@@ -21,8 +22,11 @@ import vavi.util.Debug;
  * Created on 2003/07/01
  */
 public class NetworkMessageBridge implements NetworkEventHandler {
+
+    private static final Logger logger = System.getLogger(NetworkMessageBridge.class.getName());
+
     /** */
-    private RoutingPolicy handler;
+    private final RoutingPolicy handler;
 
     /** */
     public NetworkMessageBridge(RoutingPolicy handler) {
@@ -30,6 +34,7 @@ public class NetworkMessageBridge implements NetworkEventHandler {
     }
 
     /** */
+    @Override
     public void onConnectionEstablished(Connection connection) throws IOException {
         byte[] buffer = new byte[2024];
         NodeInfo nodeInfo;
@@ -44,7 +49,7 @@ public class NetworkMessageBridge implements NetworkEventHandler {
             count = connection.read(buffer);
             nodeInfo = NodeInfo.parseNodeInfo(new String(buffer, 0, count));
         } catch (IOException e) {
-            e.printStackTrace();
+            logger.log(Level.ERROR, e.getMessage(), e);
             connection.close();
             return;
         }
@@ -58,15 +63,16 @@ public class NetworkMessageBridge implements NetworkEventHandler {
     private int remaining = 0;
 
     /** */
+    @Override
     public void onPacketArrived(Connection connection, byte[] data) throws IOException {
-Debug.println("<<received a packet");
+logger.log(Level.INFO, "<<received a packet");
         if (remaining == 0) {
             int someDataLength = ((data[0] & 0xff) << 8) | (data[1] & 0xff) + 2;
-Debug.println("received: " + data.length + " expected: " + someDataLength + " 1:" + data[0] + " 2:" + data[1]);
+logger.log(Level.INFO, "received: " + data.length + " expected: " + someDataLength + " 1:" + data[0] + " 2:" + data[1]);
             if (someDataLength == data.length) {
-Debug.println("<<new message");
+logger.log(Level.INFO, "<<new message");
                 Message someMessage = new Message(data);
-Debug.println(someMessage.getSource() + " -> " + someMessage.getDestination());
+logger.log(Level.INFO, someMessage.getSource() + " -> " + someMessage.getDestination());
                 handler.onMessageArrived(connection, new Message(data));
                 return;
             } else {
@@ -78,7 +84,7 @@ Debug.println(someMessage.getSource() + " -> " + someMessage.getDestination());
         if (remaining == data.length) {
             // exactly the size expected
             System.arraycopy(data, 0, buffer, buffer.length - remaining, data.length);
-Debug.println("<<new message");
+logger.log(Level.INFO, "<<new message");
             handler.onMessageArrived(connection, new Message(buffer));
             remaining = 0;
         } else if (remaining > data.length) {
@@ -88,7 +94,7 @@ Debug.println("<<new message");
         } else if (remaining < data.length) {
             // longer than expected
             System.arraycopy(data, 0, buffer, buffer.length - remaining, remaining);
-Debug.println("<<new message");
+logger.log(Level.INFO, "<<new message");
             handler.onMessageArrived(connection, new Message(buffer));
             byte[] someBytes = new byte[data.length - remaining];
             System.arraycopy(data, remaining, someBytes, 0, someBytes.length);
@@ -98,9 +104,8 @@ Debug.println("<<new message");
     }
 
     /** */
+    @Override
     public void onDisconnect(Connection connection) throws IOException {
         handler.onDisconnect(connection);
     }
 }
-
-/* */

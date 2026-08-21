@@ -23,10 +23,10 @@ import vavi.net.www.protocol.p2p.P2PConnection;
 class StunP2PConnection extends P2PConnection {
 
     /** */
-    private DatagramConnection datagramConnection;
+    private final DatagramConnection datagramConnection;
 
     /** */
-    private StunURLConnection connection;
+    private final StunURLConnection connection;
 
     /** */
     StunP2PConnection(DatagramConnection datagramConnection, StunURLConnection connection) {
@@ -34,7 +34,8 @@ class StunP2PConnection extends P2PConnection {
         this.connection = connection;
     }
 
-    /** unicast TODO ÉCÉxÉìÉgÇæÇØÇ≈Ç¢Ç¢ÇÒÇøÇ·Ç§ÇÃÅH */
+    /** unicast TODO „Ç§„Éô„É≥„Éà„Å†„Åë„Åß„ÅÑ„ÅÑ„Çì„Å°„ÇÉ„ÅÜ„ÅÆÔºü */
+    @Override
     public InputStream getInputStream() throws IOException {
         StunInputStream stunInputStream = new StunInputStream();
         connection.addP2PConnectionListener(stunInputStream.getConnectionListener());
@@ -42,9 +43,8 @@ class StunP2PConnection extends P2PConnection {
     }
 
     /** unicast */
+    @Override
     public OutputStream getOutputStream() throws IOException {
         return new StunUnicastOutputStream(connection.getNode(), datagramConnection.getID());
     }
 }
-
-/* */

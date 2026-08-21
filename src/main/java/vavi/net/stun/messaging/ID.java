@@ -16,18 +16,19 @@ import java.util.List;
  * Created on 2003/06/29
  */
 public class ID {
+
     /** */
-    private byte[] idBytes;
+    private final byte[] idBytes;
 
     /** */
     public static final ID BROADCASTID = new ID("broadcast".getBytes());
 
     /** */
-    private static List<ID> ids = new ArrayList<ID>();
+    private static final List<ID> ids = new ArrayList<>();
 
     /** */
     private ID(byte[] bytes) {
-// Debug.println("id:"+new String(anyBytes));
+//logger.log(Level.TRACE, "id: " + new String(anyBytes));
         this.idBytes = bytes;
     }
 
@@ -62,14 +63,14 @@ public class ID {
 
     /** */
     public boolean equals(Object id) {
-// Debug.println("tet");
+//logger.log(Level.TRACE, "tet");
         if (!(id instanceof ID)) {
             return false;
         }
         boolean result = Arrays.equals(this.idBytes, ((ID) id).idBytes);
-//Debug.println("ID being compared: " + someResult);
-//Debug.println(" " + anObject.toString());
-//Debug.println("* " + this.toString());
+//logger.log(Level.INFO, "ID being compared: " + someResult);
+//logger.log(Level.INFO, " " + anObject.toString());
+//logger.log(Level.INFO, "* " + this.toString());
         return result;
     }
 }

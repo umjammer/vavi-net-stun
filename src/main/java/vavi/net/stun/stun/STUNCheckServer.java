@@ -7,6 +7,8 @@
 package vavi.net.stun.stun;
 
 import java.io.IOException;
+import java.lang.System.Logger;
+import java.lang.System.Logger.Level;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
@@ -18,7 +20,6 @@ import vavi.net.stun.NodeInfo;
 import vavi.net.stun.messaging.ID;
 import vavi.net.stun.messaging.Message;
 import vavi.net.stun.routing.RoutingPolicy;
-import vavi.util.Debug;
 
 
 /**
@@ -28,6 +29,8 @@ import vavi.util.Debug;
  * Created on 2003/06/25
  */
 public class STUNCheckServer {
+
+    private static final Logger logger = System.getLogger(STUNCheckServer.class.getName());
 
     /** */
     public enum StunType {
@@ -46,7 +49,7 @@ public class STUNCheckServer {
         /** */
         HOSTNOTAVAILABLE(-2);
         /** */
-        int type;
+        final int type;
         /** */
         StunType(int type) {
             this.type = type;
@@ -68,7 +71,7 @@ public class STUNCheckServer {
         /** */
         CHANGEIPPORT("giveme a different ip and port");
         /** real messagem of command */
-        String message;
+        final String message;
         /** */
         Command(String message) {
             this.message = message;
@@ -76,16 +79,16 @@ public class STUNCheckServer {
     }
 
     /** default checker port 1 */
-    public static int PORT1 = 2002;
+    public static final int PORT1 = 2002;
 
     /** default checker port 2 */
-    public static int PORT2 = 2003;
+    public static final int PORT2 = 2003;
 
     /** */
-    private RoutingPolicy policy;
+    private final RoutingPolicy policy;
 
     /** */
-    private DatagramSocket[] sockets = new DatagramSocket[2];
+    private final DatagramSocket[] sockets = new DatagramSocket[2];
 
     /**
      * Lets two STUN checher server start.
@@ -95,7 +98,7 @@ public class STUNCheckServer {
         try {
             sockets[0] = new DatagramSocket(PORT1);
         } catch (IOException e) {
-Debug.println("could not bind stun port1(" + PORT1 + "). trying some other port.");
+logger.log(Level.INFO, "could not bind stun port1(" + PORT1 + "). trying some other port.");
             try {
                 sockets[0] = new DatagramSocket(0);
             } catch (IOException f) {
@@ -105,7 +108,7 @@ Debug.println("could not bind stun port1(" + PORT1 + "). trying some other port.
         try {
             sockets[1] = new DatagramSocket(PORT2);
         } catch (IOException e) {
-Debug.println("could not bind stun port2(" + PORT2 + "). trying some other port.");
+logger.log(Level.INFO, "could not bind stun port2(" + PORT2 + "). trying some other port.");
             try {
                 sockets[1] = new DatagramSocket(0);
             } catch (IOException f) {
@@ -117,29 +120,30 @@ Debug.println("could not bind stun port2(" + PORT2 + "). trying some other port.
     }
 
     /** checker 1 */
-    private ExecutorService packetChecker1 = Executors.newSingleThreadExecutor();
+    private final ExecutorService packetChecker1 = Executors.newSingleThreadExecutor();
 
     /** checker 2 */
-    private ExecutorService packetChecker2 = Executors.newSingleThreadExecutor();
+    private final ExecutorService packetChecker2 = Executors.newSingleThreadExecutor();
 
     /** Checker class */
     private class PacketChecker implements Runnable {
-        private DatagramSocket socket;
+        private final DatagramSocket socket;
 
         public PacketChecker(DatagramSocket socket) {
             this.socket = socket;
         }
 
+        @Override
         public void run() {
             byte[] buffer = new byte[1024];
-Debug.println("start listening to " + socket.getLocalAddress() + ":" + socket.getLocalPort());
+logger.log(Level.INFO, "start listening to " + socket.getLocalAddress() + ":" + socket.getLocalPort());
             DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
             while (true) {
                 try {
                     socket.receive(packet);
                     onPacketArrived(socket, packet);
                 } catch (Exception e) {
-                    Debug.println(e);
+                    logger.log(Level.INFO, e);
                 }
             }
         }
@@ -152,36 +156,36 @@ Debug.println("start listening to " + socket.getLocalAddress() + ":" + socket.ge
         String reply = packet.getAddress().getHostAddress() + ":" + packet.getPort();
         if (Command.CHECKPORT.message.equals(command)) {
             byte[] someReplyData = reply.getBytes();
-Debug.println("<STUN:" + socket.getLocalPort() + ">received check port from:" + reply);
+logger.log(Level.INFO, "<STUN:" + socket.getLocalPort() + ">received check port from:" + reply);
             DatagramPacket somePacket = new DatagramPacket(someReplyData, someReplyData.length, packet.getAddress(), packet.getPort());
             for (int i = 0; i < 3; i++) {
                 try {
                     socket.send(somePacket);
                     try { Thread.sleep(100); } catch (InterruptedException e) {}
                 } catch (IOException e) {
-                    Debug.printStackTrace(e);
+                    logger.log(Level.ERROR, e.getMessage(), e);
                 }
             }
         } else if (Command.CHANGEPORT.message.equals(command)) {
             byte[] replyData = reply.getBytes();
             DatagramPacket somePacket = new DatagramPacket(replyData, replyData.length, packet.getAddress(), packet.getPort());
             DatagramSocket someSocket = (socket == this.sockets[0]) ? this.sockets[1] : this.sockets[0];
-Debug.println("<STUN:" + socket.getLocalPort() + ">received change port from:" + reply);
+logger.log(Level.INFO, "<STUN:" + socket.getLocalPort() + ">received change port from:" + reply);
             for (int i = 0; i < 3; i++) {
                 try {
                     someSocket.send(somePacket);
                     try { Thread.sleep(100); } catch (InterruptedException e) {}
                 } catch (IOException e) {
-                    Debug.printStackTrace(e);
+                    logger.log(Level.ERROR, e.getMessage(), e);
                 }
             }
         } else if (Command.CHANGEIP.message.equals(command) || Command.CHANGEIPPORT.message.equals(command)) {
             ID id = policy.getServerIDAtRandom();
-Debug.println("<STUN:" + socket.getLocalPort() + ">received changeip from" + reply + " : forwarding to " + id);
+logger.log(Level.INFO, "<STUN:" + socket.getLocalPort() + ">received changeip from" + reply + " : forwarding to " + id);
             Message someMessage = new Message(policy.getLocalID(), id, Message.Type.STUN, reply.getBytes());
             policy.sendMessage(someMessage);
         } else {
-Debug.println("unknown command: " + command);
+logger.log(Level.INFO, "unknown command: " + command);
         }
     }
 
@@ -192,15 +196,15 @@ Debug.println("unknown command: " + command);
         try {
             InetAddress ip = InetAddress.getByName(st.nextToken());
             int port = Integer.parseInt(st.nextToken());
-Debug.println("<STUN>handling stun control message:" + ip.getHostAddress() + ":" + port);
+logger.log(Level.INFO, "<STUN>handling stun control message:" + ip.getHostAddress() + ":" + port);
             DatagramPacket somePacket = new DatagramPacket(message.getData(), message.getData().length, ip, port);
             for (int i = 0; i < 3; i++) {
-Debug.println("sending STUN change ip reply");
+logger.log(Level.INFO, "sending STUN change ip reply");
                 this.sockets[0].send(somePacket);
                 try { Thread.sleep(100); } catch (InterruptedException e) {}
             }
         } catch (IOException e) {
-            Debug.printStackTrace(e);
+            logger.log(Level.ERROR, e.getMessage(), e);
         }
     }
 
@@ -224,7 +228,7 @@ Debug.println("sending STUN change ip reply");
         try {
             address = InetAddress.getByName(ip);
         } catch (IOException e) {
-            Debug.printStackTrace(e);
+            logger.log(Level.ERROR, e.getMessage(), e);
             return null;
         }
         return getRouterInetAddr(socket, address, port);
@@ -254,7 +258,7 @@ Debug.println("sending STUN change ip reply");
         DatagramPacket packet = new DatagramPacket(message, message.length, ip, port);
         byte[] buffer = new byte[1024];
 
-Debug.println("sending a stun request to " + ip + ":" + port);
+logger.log(Level.INFO, "sending a stun request to " + ip + ":" + port);
 
         DatagramPacket receivePacket = new DatagramPacket(buffer, 1024);
 
@@ -268,7 +272,7 @@ Debug.println("sending a stun request to " + ip + ":" + port);
         try {
             someIP = InetAddress.getByName(st.nextToken());
         } catch (IOException e) {
-Debug.printStackTrace(e);
+logger.log(Level.ERROR, e.getMessage(), e);
             return null;
         }
         int somePort = Integer.parseInt(st.nextToken());
@@ -280,14 +284,14 @@ Debug.printStackTrace(e);
         DatagramSocket socket;
         try {
             socket = new DatagramSocket(0);
-Debug.println("opening port: " + socket.getLocalPort());
+logger.log(Level.INFO, "opening port: " + socket.getLocalPort());
         } catch (IOException e) {
-Debug.printStackTrace(e);
+logger.log(Level.ERROR, e.getMessage(), e);
             return STUNCheckServer.StunType.ERROR;
         }
 
         for (int i = 0; i < servers.length; i++) {
-Debug.println("sending check port[" + i + "]");
+logger.log(Level.INFO, "sending check port[" + i + "]");
             STUNResponse response1 = sendSTUNRequest(socket, STUNCheckServer.Command.CHECKPORT, servers[i].getIP(), servers[i].getSTUNPort1());
             if (response1 == null) {
                 continue;
@@ -295,18 +299,18 @@ Debug.println("sending check port[" + i + "]");
             if (isLocalInterface(response1.getLocalIp())) {
                 return STUNCheckServer.StunType.GLOBAL;
             }
-Debug.println("received checkport reply from:" + response1.getRemoteIp() + ":" + response1.getRemotePort());
+logger.log(Level.INFO, "received checkport reply from:" + response1.getRemoteIp() + ":" + response1.getRemotePort());
 
-Debug.println("sending change port");
+logger.log(Level.INFO, "sending change port");
             STUNResponse response2 = sendSTUNRequest(socket, STUNCheckServer.Command.CHANGEPORT, servers[i].getIP(), servers[i].getSTUNPort1());
             if (response2 != null) {
-Debug.println("received change port reply from:" + response2.getRemoteIp() + ":" + response2.getRemotePort());
-Debug.println("sending change ip");
+logger.log(Level.INFO, "received change port reply from:" + response2.getRemoteIp() + ":" + response2.getRemotePort());
+logger.log(Level.INFO, "sending change ip");
                 STUNResponse someResponse3 = sendSTUNRequest(socket, STUNCheckServer.Command.CHANGEIP, servers[i].getIP(), servers[i].getSTUNPort1());
                 return (someResponse3 != null) ? STUNCheckServer.StunType.FULLCONE : STUNCheckServer.StunType.RESTRICTED;
             } else {
-Debug.println("changeport reply timed out");
-Debug.println("sending check port2");
+logger.log(Level.INFO, "changeport reply timed out");
+logger.log(Level.INFO, "sending check port2");
                 STUNResponse response3 = sendSTUNRequest(socket, STUNCheckServer.Command.CHECKPORT, servers[i].getIP(), servers[i].getSTUNPort2());
                 if (response3.getLocalIp().equals(response1.getLocalIp())) {
                     return STUNCheckServer.StunType.PORTRESTRICTED;
@@ -322,10 +326,10 @@ Debug.println("sending check port2");
     private static boolean isLocalInterface(InetAddress address) {
         try {
             InetAddress someAddress = InetAddress.getLocalHost();
-//Debug.println(someAddress);
+//logger.log(Level.INFO, someAddress);
             return address.equals(someAddress);
         } catch (IOException e) {
-Debug.printStackTrace(e);
+logger.log(Level.ERROR, e.getMessage(), e);
             return false;
         }
     }
@@ -339,7 +343,7 @@ Debug.printStackTrace(e);
             timeoutLength = socket.getSoTimeout();
             socket.setSoTimeout(300);
         } catch (IOException e) {
-Debug.printStackTrace(e);
+logger.log(Level.ERROR, e.getMessage(), e);
             return false;
         }
 
@@ -351,7 +355,7 @@ Debug.printStackTrace(e);
                         socket.receive(receivePacket);
                         flag = true;
                     } catch (IOException e) {
-Debug.println("udp packet timed out");
+logger.log(Level.INFO, "udp packet timed out");
                     }
                 }
                 if (flag) {
@@ -360,17 +364,15 @@ Debug.println("udp packet timed out");
                 try { Thread.sleep(1000); } catch (InterruptedException e) {}
             }
         } catch (IOException e) {
-Debug.printStackTrace(e);
+logger.log(Level.ERROR, e.getMessage(), e);
         }
 
         try {
             socket.setSoTimeout(timeoutLength);
         } catch (IOException e) {
-Debug.printStackTrace(e);
+logger.log(Level.ERROR, e.getMessage(), e);
         }
-Debug.println("flag: " + flag);
+logger.log(Level.INFO, "flag: " + flag);
         return flag;
     }
 }
-
-/* */

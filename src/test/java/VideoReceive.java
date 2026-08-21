@@ -45,9 +45,9 @@ import javax.media.rtp.event.StreamMappedEvent;
   Spring 2003
  */
 public class VideoReceive implements ReceiveStreamListener, SessionListener, ControllerListener {
-    private String ipAddress;
+    private final String ipAddress;
 
-    private String portStr;
+    private final String portStr;
 
     private RTPManager mgr = null;
 
@@ -55,7 +55,7 @@ public class VideoReceive implements ReceiveStreamListener, SessionListener, Con
 
     private boolean dataReceived = false;
 
-    private Object dataSync = new Object();
+    private final Object dataSync = new Object();
 
     public VideoReceive(String ipAddress, String port) {
         this.ipAddress = ipAddress;
@@ -66,7 +66,7 @@ public class VideoReceive implements ReceiveStreamListener, SessionListener, Con
 
         try {
             InetAddress ipAddr;
-            int port = (new Integer(portStr)).intValue();
+            int port = Integer.parseInt(portStr);
             int ttl = 1;
             SessionAddress localAddr = new SessionAddress();
             SessionAddress destAddr;
@@ -113,7 +113,7 @@ public class VideoReceive implements ReceiveStreamListener, SessionListener, Con
                 }
             }
         } catch (Exception e) {
-            System.err.println("message :" + e.toString());
+            System.err.println("message :" + e);
         }
 
         if (!dataReceived) {
@@ -134,7 +134,7 @@ public class VideoReceive implements ReceiveStreamListener, SessionListener, Con
 
         try {
             playerWindow.close();
-        } catch (Exception e) {
+        } catch (Exception _) {
         }
 
         // close the RTP session.
@@ -148,6 +148,7 @@ public class VideoReceive implements ReceiveStreamListener, SessionListener, Con
     /**
      * SessionListener.
      */
+    @Override
     public synchronized void update(SessionEvent evt) {
         if (evt instanceof NewParticipantEvent) {
             Participant p = ((NewParticipantEvent) evt).getParticipant();
@@ -158,87 +159,87 @@ public class VideoReceive implements ReceiveStreamListener, SessionListener, Con
     /**
      * ReceiveStreamListener
      */
+    @Override
     public synchronized void update(ReceiveStreamEvent evt) {
 
 //        RTPManager mgr = (RTPManager) evt.getSource();
         Participant participant = evt.getParticipant(); // could be null.
         ReceiveStream stream = evt.getReceiveStream(); // could be null.
 
-        if (evt instanceof RemotePayloadChangeEvent) {
-            Fatal("ReceiveStream Listener - Received an RTP PayloadChangeEvent. Sorry, cannot handle payload change.");
-        }
+        switch (evt) {
+            case RemotePayloadChangeEvent remotePayloadChangeEvent ->
+                    Fatal("ReceiveStream Listener - Received an RTP PayloadChangeEvent. Sorry, cannot handle payload change.");
+            case NewReceiveStreamEvent newReceiveStreamEvent -> {
 
-        else if (evt instanceof NewReceiveStreamEvent) {
+                try {
+                    stream = newReceiveStreamEvent.getReceiveStream();
+                    DataSource ds = stream.getDataSource();
 
-            try {
-                stream = ((NewReceiveStreamEvent) evt).getReceiveStream();
-                DataSource ds = stream.getDataSource();
+                    // Find out the formats.
+                    RTPControl ctl = (RTPControl) ds.getControl("javax.media.rtp.RTPControl");
+                    if (ctl != null) {
+                        System.out.println("ReceiveStream Listener - Received new RTP stream: " + ctl.getFormat());
+                    } else
+                        System.out.println("ReceiveStream Listener - Received new RTP stream");
 
-                // Find out the formats.
-                RTPControl ctl = (RTPControl) ds.getControl("javax.media.rtp.RTPControl");
-                if (ctl != null) {
-                    System.out.println("ReceiveStream Listener - Received new RTP stream: " + ctl.getFormat());
-                } else
-                    System.out.println("ReceiveStream Listener - Received new RTP stream");
+                    if (participant == null)
+                        System.out.println("      The sender of this stream had yet to be identified.");
+                    else {
+                        System.out.println("      The stream comes from: " + participant.getCNAME());
+                    }
 
-                if (participant == null)
-                    System.out.println("      The sender of this stream had yet to be identified.");
-                else {
-                    System.out.println("      The stream comes from: " + participant.getCNAME());
+                    // create a player by passing datasource to the Media Manager
+                    System.out.println("Creating player...");
+                    Player p = javax.media.Manager.createPlayer(ds);
+                    if (p == null)
+                        return;
+
+                    System.out.println("adding Listener...");
+                    p.addControllerListener(this);
+                    System.out.println("Realizing player...");
+                    p.realize();
+                    System.out.println("Creating playerWindow...");
+                    playerWindow = new PlayerWindow(p, stream);
+
+                    System.out.println("notifying initialize()...");
+                    // Notify initialize() that a new stream had arrived.
+                    synchronized (dataSync) {
+                        dataReceived = true;
+                        dataSync.notifyAll();
+                    }
+
+                } catch (Exception e) {
+                    System.err.println("NewReceiveStreamEvent exception " + e);
                 }
+            }
+            case StreamMappedEvent streamMappedEvent -> {
 
-                // create a player by passing datasource to the Media Manager
-                System.out.println("Creating player...");
-                Player p = javax.media.Manager.createPlayer(ds);
-                if (p == null)
-                    return;
-
-                System.out.println("adding Listener...");
-                p.addControllerListener(this);
-                System.out.println("Realizing player...");
-                p.realize();
-                System.out.println("Creating playerWindow...");
-                playerWindow = new PlayerWindow(p, stream);
-
-                System.out.println("notifying initialize()...");
-                // Notify initialize() that a new stream had arrived.
-                synchronized (dataSync) {
-                    dataReceived = true;
-                    dataSync.notifyAll();
+                if (stream != null && stream.getDataSource() != null) {
+                    DataSource ds = stream.getDataSource();
+                    // Find out the formats.
+                    RTPControl ctl = (RTPControl) ds.getControl("javax.media.rtp.RTPControl");
+                    System.out.println("ReceiveStream Listener - The previously unidentified stream ");
+                    if (ctl != null)
+                        System.out.println("      " + ctl.getFormat());
+                    System.out.println("      had now been identified as sent by: " + participant.getCNAME());
                 }
+            }
+            case ByeEvent byeEvent -> {
 
-            } catch (Exception e) {
-                System.err.println("NewReceiveStreamEvent exception " + e.toString());
-                return;
+                System.out.println("ReceiveStream Listener - Got \"bye\" from: " + participant.getCNAME());
+                if (playerWindow != null) {
+                    playerWindow.close();
+                }
+            }
+            default -> {
             }
         }
-
-        else if (evt instanceof StreamMappedEvent) {
-
-            if (stream != null && stream.getDataSource() != null) {
-                DataSource ds = stream.getDataSource();
-                // Find out the formats.
-                RTPControl ctl = (RTPControl) ds.getControl("javax.media.rtp.RTPControl");
-                System.out.println("ReceiveStream Listener - The previously unidentified stream ");
-                if (ctl != null)
-                    System.out.println("      " + ctl.getFormat());
-                System.out.println("      had now been identified as sent by: " + participant.getCNAME());
-            }
-        }
-
-        else if (evt instanceof ByeEvent) {
-
-            System.out.println("ReceiveStream Listener - Got \"bye\" from: " + participant.getCNAME());
-            if (playerWindow != null) {
-                playerWindow.close();
-            }
-        }
-
     }
 
     /**
      * ControllerListener for the Player.
      */
+    @Override
     public synchronized void controllerUpdate(ControllerEvent ce) {
 
         Player p = (Player) ce.getSourceController();
@@ -272,15 +273,16 @@ public class VideoReceive implements ReceiveStreamListener, SessionListener, Con
      */
     class PlayerWindow extends Frame implements WindowListener {
 
-        Player player;
+        final Player player;
 
-        ReceiveStream stream;
+        final ReceiveStream stream;
 
         PlayerWindow(Player p, ReceiveStream strm) {
             super("Video Client");
             player = p;
             stream = strm;
             addWindowListener(new WindowAdapter() {
+                @Override
                 public void windowClosing(WindowEvent we) {
                     close();
                     dispose();
@@ -289,24 +291,31 @@ public class VideoReceive implements ReceiveStreamListener, SessionListener, Con
             });
         }
 
+        @Override
         public void windowActivated(WindowEvent we) {
         }
 
+        @Override
         public void windowClosed(WindowEvent we) {
         }
 
+        @Override
         public void windowClosing(WindowEvent we) {
         }
 
+        @Override
         public void windowDeactivated(WindowEvent we) {
         }
 
+        @Override
         public void windowDeiconified(WindowEvent we) {
         }
 
+        @Override
         public void windowIconified(WindowEvent we) {
         }
 
+        @Override
         public void windowOpened(WindowEvent we) {
         }
 
@@ -320,6 +329,7 @@ public class VideoReceive implements ReceiveStreamListener, SessionListener, Con
             dispose();
         }
 
+        @Override
         public void addNotify() {
             super.addNotify();
             pack();
@@ -329,9 +339,10 @@ public class VideoReceive implements ReceiveStreamListener, SessionListener, Con
     /**
      * GUI classes for the Player.
      */
-    class PlayerPanel extends Panel {
+    static class PlayerPanel extends Panel {
 
-        Component vc, cc;
+        final Component vc;
+        final Component cc;
 
         PlayerPanel(Player p) {
             setLayout(new BorderLayout());
@@ -341,6 +352,7 @@ public class VideoReceive implements ReceiveStreamListener, SessionListener, Con
                 add("South", cc);
         }
 
+        @Override
         public Dimension getPreferredSize() {
             int w = 0, h = 0;
             if (vc != null) {
@@ -360,14 +372,14 @@ public class VideoReceive implements ReceiveStreamListener, SessionListener, Con
         }
     }
 
-    void Fatal(String s) {
+    static void Fatal(String s) {
         // Applications will make various choices about what
         // to do here. We print a message
         System.err.println("FATAL ERROR: " + s);
         System.exit(-1);
     }
 
-    public static void main(String argv[]) {
+    static void main(String[] argv) {
         // We need two parameters to receive
         // For example,
         // java VideoReceive 192.168.1.100 22044

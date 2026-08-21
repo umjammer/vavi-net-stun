@@ -28,14 +28,16 @@ class StunInputStream extends InputStream {
     private final byte[] single = new byte[1];
 
     /** */
-    protected RingBuffer buffer = new RingBuffer(4096);
+    protected final RingBuffer buffer = new RingBuffer(4096);
 
     /** */
+    @Override
     public synchronized int available() throws IOException {
         return buffer.available();
     }
 
     /** */
+    @Override
     public synchronized int read() throws IOException {
         if (buffer.read(single, 0, 1) == -1) {
             return -1;
@@ -45,26 +47,31 @@ class StunInputStream extends InputStream {
     }
 
     /** */
+    @Override
     public synchronized int read(byte[] b, int off, int len) throws IOException {
         int bytesRead = buffer.read(b, off, len);
         return bytesRead;
     }
 
     /** */
+    @Override
     public synchronized long skip(long n) throws IOException {
         throw new IOException("skip not supported");
     }
 
     /** */
+    @Override
     public synchronized void mark(int readlimit) {
     }
     
     /** */
+    @Override
     public synchronized void reset() throws IOException {
         throw new IOException("reset not supported");
     }
 
     /** */
+    @Override
     public boolean markSupported() {
         return false;
     }
@@ -75,20 +82,21 @@ class StunInputStream extends InputStream {
     }
 
     /** */
-    private P2PConnectionListener connectionListener = new P2PConnectionListener() {
+    private final P2PConnectionListener connectionListener = new P2PConnectionListener() {
         /** */
+        @Override
         public synchronized void dataArrived(P2PConnectionEvent event) {
             byte[] data = (byte[]) event.getData();
             buffer.write(data, 0, data.length);
-//Debug.println("data: " + baos.size() + " bytes\n" + StringUtil.getDump(data));
+//logger.log(Level.INFO, "data: " + baos.size() + " bytes\n" + StringUtil.getDump(data));
         }
         /** */
+        @Override
         public void newNode(P2PConnectionEvent event) {
         }
         /** */
+        @Override
         public void connected(P2PConnectionEvent event) {
         }
     };
 }
-
-/* */
