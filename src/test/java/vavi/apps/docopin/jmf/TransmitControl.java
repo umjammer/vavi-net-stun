@@ -1,11 +1,6 @@
 
 package vavi.apps.docopin.jmf;
 
-/**
- * ストリーミング送信クラス
- * 
- * $Id: TransmitControl.java,v 1.11 2003/01/27 19:05:43 matsu Exp $
- */
 import java.io.IOException;
 import java.util.StringTokenizer;
 import java.util.Vector;
@@ -26,6 +21,11 @@ import javax.media.protocol.DataSource;
 import vavi.util.Debug;
 
 
+/**
+ * Streaming transmission class
+ *
+ * $Id: TransmitControl.java,v 1.11 2003/01/27 19:05:43 matsu Exp $
+ */
 public class TransmitControl implements MediaController {
 
     private static String url = "";

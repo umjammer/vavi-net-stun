@@ -34,7 +34,7 @@ class StunP2PConnection extends P2PConnection {
         this.connection = connection;
     }
 
-    /** unicast TODO イベントだけでいいんちゃうの？ */
+    /** unicast TODO Wouldn't just the event be enough? */
     @Override
     public InputStream getInputStream() throws IOException {
         StunInputStream stunInputStream = new StunInputStream();

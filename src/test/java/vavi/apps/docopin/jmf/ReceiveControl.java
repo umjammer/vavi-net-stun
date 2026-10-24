@@ -1,12 +1,6 @@
 
 package vavi.apps.docopin.jmf;
 
-/**
- * ストリーミング受信クラス
- * 
- * $Id: ReceiveControl.java,v 1.4 2003/01/21 18:48:50 matsu Exp $
- */
-
 import java.awt.Component;
 import java.awt.Label;
 
@@ -15,7 +9,13 @@ import javax.media.MediaLocator;
 import javax.media.Player;
 
 
-/** JMF controler */
+/**
+ * Streaming reception class
+ *
+ * JMF controller
+ *
+ * $Id: ReceiveControl.java,v 1.4 2003/01/21 18:48:50 matsu Exp $
+ */
 public class ReceiveControl implements MediaController {
 
     private String url = "";

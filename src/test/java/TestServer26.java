@@ -16,11 +16,12 @@ import javax.media.protocol.DataSource;
 import vavi.util.Debug;
 
 
-/** JMF controler */
 /**
- * ストリーミング送信クラス
+ * JMF controler
+ *
+ * Streaming transmission class
  * --------------How to use: -------------------------------------
- * java TestServer26 クライアントのＩＰアドレス 音楽ファイルのパス(mp3は無理。wav推奨)
+ * java TestServer26 Client's IP address; path to the music file (mp3 is not supported; wav is recommended).
  *
  * by takuro
  */
@@ -96,7 +97,7 @@ public class TestServer26 {
             System.out.println("midium");
             dataSink.start();
 
-            //player.start(); ローカルで鳴らす場合
+            //player.start(); When playing locally
 
             System.out.println("after");
         } catch (IOException ioe) {

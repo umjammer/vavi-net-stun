@@ -36,7 +36,7 @@ public abstract class Node
     private final RoutingPolicy policy;
 
     /** 
-     * servers のうち一つに接続する Node を作成します。
+     * Create a Node that will connect to one of the servers.
      * <p>use this constructor for debug purposes</p>
      */
     public Node(ID id, NodeInfo[] servers, STUNCheckServer.StunType stunType) {
@@ -54,7 +54,7 @@ public abstract class Node
     }
 
     /**
-     * servers のうち一つに接続する Node を作成します。
+     * Create a Node that will connect to one of the servers.
      * @param id this node's id
      * @param servers 
      */

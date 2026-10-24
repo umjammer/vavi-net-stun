@@ -4,11 +4,12 @@ import javax.media.MediaLocator;
 import javax.media.Player;
 
 
-/** JMF controler */
 /**
- * ストリーミング受信クラス
+ * JMF controler
+ *
+ * Streaming reception class
  * ----------------How to use:-------------------------
- * java TestClient サーバーがあがってるＩＰアドレス
+ * java TestClient IP address where the server is running
  * by takuro
  */
 public class TestClient {
@@ -42,5 +43,4 @@ public class TestClient {
             player = null;
         }
     }
-
 }

@@ -35,13 +35,12 @@ public class DrawTool extends Frame {
             this.offs = createImage(d.width, d.height);
             this.offg = this.offs.getGraphics();
 
-            // 前回の色の枠を消去
+            // Remove the previous colored border.
             this.offg.setColor(Color.white);
             this.offg.fillRect(0, 0, d.width, d.height);
 
-            // ここが晦です
-            // 前回までに描画されたイメージを新しいイメージ
-            // にコピーする。
+            // This is the end of the month.
+            // The image drawn in the previous session is copied to the new image.
             if (img != null) {
                 offg.drawImage(img, 0, 0, null);
             }
@@ -66,7 +65,7 @@ public class DrawTool extends Frame {
     }
 
     final MouseMotionListener mouseMotionListener = new MouseMotionAdapter() {
-        // マウスでドラッグされたところに点を打つ
+        // Place a point where you drag with the mouse.
         @Override
         public void mouseDragged(MouseEvent event) {
             offg.fillOval(event.getX(), event.getY(), 5, 5);

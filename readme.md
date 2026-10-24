@@ -7,12 +7,21 @@
 
 STUN for Java
 
+## Install
+
+## Usage
+
 ## References
 
-- http://www.ht.sfc.keio.ac.jp/~suno/term/2003s/
+- [original](https://web.archive.org/web/20040610043750/http://www.ht.sfc.keio.ac.jp/~suno/term/2003s/)
+- https://github.com/sisbell/jxta (java p2p ri)
 
 ## TODO
 
-  - ~~URLConnection 化~~
-  - Connection Close 時リスナーを解放してる？
-  - 分散ハッシュ？
+  - original
+    - Name Resolution - Resolves node name collisions.
+    - Topology between parent nodes - Full mesh allows for a smarter implementation.
+    - Recovery when a child node is disconnected from its parent node - Simply reconnect to a suitable parent node selected from the parent node list.
+  - ~~URLConnection-ize~~
+  - Connection Are listeners released when the stream closes?
+  - Distributed hashing?

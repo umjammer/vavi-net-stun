@@ -57,7 +57,7 @@ public class Connection {
     private String name;
 
     /**
-     * {@link NetworkEventHandler#onConnectionEstablished(Connection)} が発行されます。
+     * The {@link NetworkEventHandler#onConnectionEstablished(Connection)} event is issued.
      */
     public Connection(NetworkEventHandler handler, InetAddress host, int port, Type connectionType) throws IOException {
         this.handler = handler;
@@ -72,7 +72,7 @@ public class Connection {
 
     /**
      * called by Server.
-     * {@link NetworkEventHandler#onConnectionEstablished(Connection)} が発行されます。
+     * The {@link NetworkEventHandler#onConnectionEstablished(Connection)} event is issued.
      */
     public Connection(NetworkEventHandler handler, Socket socket, String name) throws IOException {
         this.handler = handler;

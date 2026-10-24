@@ -146,7 +146,7 @@ class ChildNodeRoutingPolicy extends RoutingPolicy {
     }
 
     /**
-     * @throws IllegalStateException サーバノードが一つも存在しない場合
+     * @throws IllegalStateException If no server nodes exist
      */
     private void connectToServer(NodeInfo[] servers) {
         for (NodeInfo server : servers) {
@@ -215,7 +215,7 @@ logger.log(Level.INFO, "new message!!:\n" + StringUtil.getDump(message.getData()
 
 
 /**
- * グローバルアドレスで起動したノードで使用されるルーティングポリシークラスです。
+ * This is the routing policy class used by nodes launched with a global address.
  *
  * BasicRoutingPolicy.
  */
