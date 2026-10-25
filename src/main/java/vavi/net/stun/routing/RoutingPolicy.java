@@ -10,7 +10,9 @@ import java.io.IOException;
 import java.lang.System.Logger;
 import java.lang.System.Logger.Level;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
+import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -22,7 +24,8 @@ import vavi.net.stun.messaging.ID;
 import vavi.net.stun.messaging.Message;
 import vavi.net.stun.network.Connection;
 import vavi.net.stun.network.Server;
-import vavi.net.stun.stun.STUNCheckServer;
+import vavi.net.stun.stun.NatType;
+import vavi.net.stun.stun.StunServer;
 import vavi.net.stun.stunresolver.ConnectionResolver;
 import vavi.net.stun.stunresolver.DatagramConnection;
 import vavi.net.stun.stunresolver.DatagramConnectionEventHandler;
@@ -44,20 +47,20 @@ public abstract class RoutingPolicy
     private final Node node;
 
     /** */
-    private final STUNCheckServer.StunType stunType;
+    private final NatType stunType;
 
     /** */
     private final ConnectionResolver resolver;
 
     /** */
-    public RoutingPolicy(Node node, STUNCheckServer.StunType stunType) {
+    public RoutingPolicy(Node node, NatType stunType) {
         this.node = node;
         this.stunType = stunType;
         this.resolver = new ConnectionResolver(this);
     }
 
     /** */
-    public STUNCheckServer.StunType getLocalSTUNType() {
+    public NatType getLocalSTUNType() {
         return stunType;
     }
 
@@ -72,8 +75,8 @@ public abstract class RoutingPolicy
     }
 
     /** */
-    public static RoutingPolicy getRoutingPolicy(Node node, NodeInfo[] servers, STUNCheckServer.StunType stunType) {
-        if (stunType.equals(STUNCheckServer.StunType.GLOBAL)) {
+    public static RoutingPolicy getRoutingPolicy(Node node, NodeInfo[] servers, NatType stunType) {
+        if (stunType.isPubliclyReachable()) {
             return new BasicRoutingPolicy(node, servers, stunType);
         } else {
             return new ChildNodeRoutingPolicy(node, servers, stunType);
@@ -131,7 +134,7 @@ class ChildNodeRoutingPolicy extends RoutingPolicy {
     private final ConnectionResolver resolver;
 
     /** */
-    public ChildNodeRoutingPolicy(Node node, NodeInfo[] servers, STUNCheckServer.StunType stunType) {
+    public ChildNodeRoutingPolicy(Node node, NodeInfo[] servers, NatType stunType) {
         super(node, stunType);
         this.serverInfos = servers;
         this.bridge = new NetworkMessageBridge(this);
@@ -243,7 +246,7 @@ class BasicRoutingPolicy extends RoutingPolicy
     private final NodeInfoServer nodeInfoServer;
 
     /** */
-    private final STUNCheckServer stunServer;
+    private final StunServer stunServer;
 
     /** */
     private final ConnectionResolver resolver;
@@ -254,7 +257,7 @@ class BasicRoutingPolicy extends RoutingPolicy
     /**
      * @throws IllegalStateException could not bind any port
      */
-    public BasicRoutingPolicy(Node node, NodeInfo[] servers, STUNCheckServer.StunType stunType) {
+    public BasicRoutingPolicy(Node node, NodeInfo[] servers, NatType stunType) {
         super(node, stunType);
 logger.log(Level.INFO, "test: " + servers.length);
         NodeInfo[] someNodeInfo = servers;
@@ -273,7 +276,7 @@ logger.log(Level.INFO, "could not bind default port(" + DEFAULTPORT + "), trying
         localServer.start();
 
         this.nodeInfoServer = new NodeInfoServer(this);
-        this.stunServer = new STUNCheckServer(this);
+        this.stunServer = createStunServer();
         this.resolver = new ConnectionResolver(this);
 
         // connect to all other servers
@@ -286,6 +289,63 @@ logger.log(Level.INFO, "could not bind default port(" + DEFAULTPORT + "), trying
             }
         }
         serverInfos.put(null, getLocalNodeInfo());
+    }
+
+    /**
+     * Creates a stun server on the default ports, or ephemeral ports if they are in use.
+     * "change ip" requests are relayed to another server node through the overlay network.
+     *
+     * @throws IllegalStateException could not bind any port
+     */
+    private StunServer createStunServer() {
+        StunServer server;
+        try {
+            server = new StunServer(new InetSocketAddress(StunServer.DEFAULT_PORT), StunServer.DEFAULT_ALTERNATE_PORT, null);
+        } catch (IOException e) {
+logger.log(Level.INFO, "could not bind stun ports(" + StunServer.DEFAULT_PORT + ", " + StunServer.DEFAULT_ALTERNATE_PORT + "), trying other ports");
+            try {
+                server = new StunServer(new InetSocketAddress(0), 0, null);
+            } catch (IOException f) {
+                throw new IllegalStateException("could not bind any stun port", f);
+            }
+        }
+        server.setChangeIpRelay((client, response, changePort) -> {
+            ID id = getServerIDAtRandom();
+            if (id.equals(getLocalID())) {
+                return false;
+            }
+logger.log(Level.DEBUG, "relaying a stun response for " + client + " to " + id);
+            sendMessage(new Message(getLocalID(), id, Message.Type.STUN, encodeRelay(client, response, changePort)));
+            return true;
+        });
+        return server.start();
+    }
+
+    /**
+     * STUN message payload: address length (1), address, port (2), change port (1), stun response
+     */
+    private static byte[] encodeRelay(InetSocketAddress client, byte[] response, boolean changePort) {
+        byte[] address = client.getAddress().getAddress();
+        ByteBuffer bb = ByteBuffer.allocate(1 + address.length + 2 + 1 + response.length);
+        bb.put((byte) address.length).put(address).putShort((short) client.getPort()).put((byte) (changePort ? 1 : 0)).put(response);
+        return bb.array();
+    }
+
+    /** sends a stun response relayed by another server node */
+    private void handleSTUNMessage(Message message) {
+        try {
+            ByteBuffer bb = ByteBuffer.wrap(message.getData());
+            byte[] address = new byte[bb.get()];
+            bb.get(address);
+            InetSocketAddress client = new InetSocketAddress(InetAddress.getByAddress(address), bb.getShort() & 0xffff);
+            boolean changePort = bb.get() != 0;
+            byte[] response = new byte[bb.remaining()];
+            bb.get(response);
+logger.log(Level.DEBUG, "sending a relayed stun response to " + client);
+            stunServer.sendRelayed(client, response, changePort);
+        } catch (IOException | RuntimeException e) {
+            logger.log(Level.ERROR, e.getMessage(), e);
+        }
     }
 
     /** */
@@ -364,7 +424,7 @@ logger.log(Level.INFO, "sending to all except...");
                 getNodeInterface().onMessageArrived(message);
             } else if (message.isSTUNMessage()) {
 logger.log(Level.INFO, "a stun message");
-                stunServer.handleSTUNMessage(message);
+                handleSTUNMessage(message);
             } else if (message.isControlMessage()) {
                 resolver.onControlMessageArrived(message);
             }
@@ -455,7 +515,7 @@ logger.log(Level.INFO, "sending broadcast message");
     @Override
     public NodeInfo getLocalNodeInfo() {
         try {
-            return new NodeInfo(InetAddress.getLocalHost(), localServer.getLocalPort(), nodeInfoServer.getPort(), this.stunServer.getPort1(), this.stunServer.getPort2());
+            return new NodeInfo(InetAddress.getLocalHost(), localServer.getLocalPort(), nodeInfoServer.getPort(), stunServer.getPrimaryAddress().getPort(), stunServer.getAlternatePortAddress().getPort());
         } catch (UnknownHostException e) {
             throw (RuntimeException) new IllegalStateException("may not occur").initCause(e);
         }

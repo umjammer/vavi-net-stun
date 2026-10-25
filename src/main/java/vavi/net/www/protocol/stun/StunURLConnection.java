@@ -17,7 +17,7 @@ import vavi.net.stun.Node;
 import vavi.net.stun.NodeInfo;
 import vavi.net.stun.messaging.ID;
 import vavi.net.stun.messaging.Message;
-import vavi.net.stun.stun.STUNCheckServer.StunType;
+import vavi.net.stun.stun.NatType;
 import vavi.net.stun.stunresolver.DatagramConnection;
 import vavi.net.www.protocol.p2p.P2PConnectionEvent;
 import vavi.net.www.protocol.p2p.P2PURLConnection;
@@ -42,7 +42,7 @@ public class StunURLConnection extends P2PURLConnection {
     }
 
     /** */
-    StunURLConnection(URL url, String id, NodeInfo[] nodeInfos, StunType type) {
+    StunURLConnection(URL url, String id, NodeInfo[] nodeInfos, NatType type) {
         super(url);
 logger.log(Level.INFO, "enter <init>");
         //
@@ -72,7 +72,7 @@ logger.log(Level.INFO, "started at:" + nodeInfo.toString());
         }
 
         /** */
-        public MyNode(ID id, NodeInfo[] servers, StunType type) {
+        public MyNode(ID id, NodeInfo[] servers, NatType type) {
             super(id, servers, type);
             NodeInfo nodeInfo = getLocalNodeInfo();
 logger.log(Level.INFO, "started at:" + nodeInfo.toString());

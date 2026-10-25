@@ -9,6 +9,8 @@ package vavi.net.stun;
 import java.io.IOException;
 import java.lang.System.Logger;
 import java.lang.System.Logger.Level;
+import java.net.DatagramSocket;
+import java.net.InetSocketAddress;
 
 import vavi.net.stun.messaging.ID;
 import vavi.net.stun.messaging.Message;
@@ -16,7 +18,8 @@ import vavi.net.stun.network.Connection;
 import vavi.net.stun.routing.RoutingPolicy;
 import vavi.net.stun.routing.MessageEventHandler;
 import vavi.net.stun.routing.NodeInfoServer;
-import vavi.net.stun.stun.STUNCheckServer;
+import vavi.net.stun.stun.NatType;
+import vavi.net.stun.stun.StunClient;
 import vavi.net.stun.stunresolver.DatagramConnectionEventHandler;
 
 
@@ -39,7 +42,7 @@ public abstract class Node
      * Create a Node that will connect to one of the servers.
      * <p>use this constructor for debug purposes</p>
      */
-    public Node(ID id, NodeInfo[] servers, STUNCheckServer.StunType stunType) {
+    public Node(ID id, NodeInfo[] servers, NatType stunType) {
         this.id = id;
         NodeInfo[] someServers = new NodeInfo[0];
         for (NodeInfo server : servers) {
@@ -69,9 +72,31 @@ public abstract class Node
                 logger.log(Level.INFO, "server is not alive: " + e);
             }
         }
-        STUNCheckServer.StunType stunType = STUNCheckServer.checkSTUNType(someServers);
+        NatType stunType = discoverNatType(someServers);
 logger.log(Level.INFO, "type: " + stunType);
         this.policy = RoutingPolicy.getRoutingPolicy(this, someServers, stunType);
+    }
+
+    /**
+     * Discovers the NAT type using stun servers of the server nodes.
+     *
+     * @return {@link NatType#ERROR} when no servers
+     */
+    private static NatType discoverNatType(NodeInfo[] servers) {
+        NatType type = NatType.ERROR;
+        try (DatagramSocket socket = new DatagramSocket()) {
+            StunClient client = StunClient.forOverlay(socket);
+            for (NodeInfo server : servers) {
+                type = client.discoverNatType(new InetSocketAddress(server.getIP(), server.getSTUNPort1()),
+                                              new InetSocketAddress(server.getIP(), server.getSTUNPort2()));
+                if (type != NatType.UDP_BLOCKED && type != NatType.ERROR) {
+                    break;
+                }
+            }
+        } catch (IOException e) {
+            logger.log(Level.ERROR, e.getMessage(), e);
+        }
+        return type;
     }
 
     /**

@@ -16,13 +16,13 @@ import java.util.List;
 import java.util.StringTokenizer;
 
 import vavi.net.stun.NodeInfo;
-import vavi.net.stun.stun.STUNCheckServer.StunType;
+import vavi.net.stun.stun.NatType;
 
 
 /**
  * stun Handler.
  *
- * @protocol "stun:nodeId?(node=nodeInfo)+(&type=GLOBAL)*"
+ * @protocol "stun:nodeId?(node=nodeInfo)+(&type=OPEN_INTERNET)*"
  * 
  * @author <a href="mailto:vavivavi@yahoo.co.jp">Naohide Sano</a> (nsano)
  * @version 0.00 031220 nsano initial version <br>
@@ -36,7 +36,7 @@ public final class Handler extends URLStreamHandler {
     private String id;
 
     /** */
-    private StunType type;
+    private NatType type;
 
     /** */
     @Override
@@ -72,7 +72,7 @@ System.err.println("nodeInfo: " + nodeInfo);
                         nodeInfos.add(nodeInfo);
                     }
                     if ("type".equals(name)) {
-                        this.type = StunType.valueOf(value);
+                        this.type = NatType.parse(value);
 System.err.println("type: " + type);
                     }
                 }

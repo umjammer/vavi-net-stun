@@ -14,6 +14,7 @@ import java.lang.System.Logger.Level;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.SocketTimeoutException;
 import java.util.ArrayList;
 import java.util.List;
@@ -23,8 +24,9 @@ import vavi.net.stun.messaging.ID;
 import vavi.net.stun.messaging.Message;
 import vavi.net.stun.routing.ControlMessageHandler;
 import vavi.net.stun.routing.RoutingPolicy;
-import vavi.net.stun.stun.STUNCheckServer;
-import vavi.net.stun.stun.STUNResponse;
+import vavi.net.stun.stun.BindingResponse;
+import vavi.net.stun.stun.NatType;
+import vavi.net.stun.stun.StunClient;
 
 
 /**
@@ -121,18 +123,21 @@ class STUNConnectionResolver {
     public Message createResolverMessage(byte messageType) throws IOException {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         DataOutputStream dos = new DataOutputStream(baos);
-        STUNResponse response = getRouterIP_Port(socket);
+        BindingResponse response = getRouterIP_Port(socket);
+        if (response == null) {
+            throw new IOException("could not get the mapped address from any stun server");
+        }
 logger.log(Level.INFO, response);
 logger.log(Level.INFO, "Local port: " + socket.getLocalPort());
-        dos.writeByte(getLocalSTUNType().getType()); // 0
+        dos.writeByte(getLocalSTUNType().getCode()); // 0
         dos.writeByte(messageType); // 1
         dos.writeInt(getLocalPort()); // 2
         dos.writeInt(getRemotePort()); // 6
-        dos.write(response.getLocalIp().getAddress()); // 10
-        if (getLocalSTUNType().equals(STUNCheckServer.StunType.SYMMETRIC)) {
-            dos.writeInt(response.getLocalPort() + 1); // 14
+        dos.write(response.mappedAddress().getAddress().getAddress()); // 10
+        if (getLocalSTUNType().equals(NatType.SYMMETRIC)) {
+            dos.writeInt(response.mappedAddress().getPort() + 1); // 14
         } else {
-            dos.writeInt(response.getLocalPort()); // 14
+            dos.writeInt(response.mappedAddress().getPort()); // 14
         }
 logger.log(Level.INFO, "resolver message size:" + dos.size());
         return new Message(getLocalID(), getRemoteID(), Message.Type.CONTROL, baos.toByteArray());
@@ -254,12 +259,14 @@ logger.log(Level.INFO, "connection timed out");
     }
 
     /** */
-    private static STUNResponse getRouterIP_Port(DatagramSocket aSocket) {
+    private static BindingResponse getRouterIP_Port(DatagramSocket aSocket) {
         NodeInfo[] someNodes = policy.getAllNodeInfo();
+        StunClient client = StunClient.forOverlay(aSocket);
         for (NodeInfo someNode : someNodes) {
-            STUNResponse someResponse = STUNCheckServer.getRouterInetAddr(aSocket, someNode.getIP(), someNode.getSTUNPort1());
-            if (someResponse != null) {
-                return someResponse;
+            try {
+                return client.bind(new InetSocketAddress(someNode.getIP(), someNode.getSTUNPort1()));
+            } catch (IOException e) {
+logger.log(Level.INFO, "stun failed: " + someNode + ": " + e);
             }
         }
         return null;
@@ -271,7 +278,7 @@ logger.log(Level.INFO, "connection timed out");
     }
 
     /** */
-    private static STUNCheckServer.StunType getLocalSTUNType() {
+    private static NatType getLocalSTUNType() {
         return policy.getLocalSTUNType();
     }
 
