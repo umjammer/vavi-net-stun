@@ -28,3 +28,6 @@ jobs:
 
       - name: Build with Maven
         run: mvn -B package --file pom.xml
+
+      - name: Test behind real firewalls (iptables)
+        run: sudo -E env "PATH=$PATH" mvn -B test --file pom.xml -Dtest=IptablesFirewallTest -Dstun.iptables=true
