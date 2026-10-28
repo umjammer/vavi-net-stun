@@ -72,12 +72,25 @@
           <groupId>org.ow2.asm</groupId>
           <artifactId>asm</artifactId>
         </exclusion>
+        <exclusion>
+          <groupId>net.minidev</groupId>
+          <artifactId>json-smart</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>com.google.guava</groupId>
+          <artifactId>guava</artifactId>
+        </exclusion>
       </exclusions>
     </dependency>
 <dependency>
-  <groupId>tools.jackson.core</groupId>
-  <artifactId>jackson-core</artifactId>
-  <version>3.2.4</version>
+  <groupId>com.google.guava</groupId>
+  <artifactId>guava</artifactId>
+  <version>33.7.2-jre</version>
+</dependency>
+<dependency>
+<groupId>tools.jackson.core</groupId>
+<artifactId>jackson-core</artifactId>
+<version>3.2.4</version>
 </dependency>
 <dependency>
   <groupId>tools.jackson.core</groupId>
@@ -88,6 +101,11 @@
   <groupId>org.ow2.asm</groupId>
   <artifactId>asm</artifactId>
   <version>9.11.1</version>
+</dependency>
+<dependency>
+  <groupId>com.github.netplex</groupId>
+  <artifactId>json-smart-v2</artifactId>
+  <version>356eddd53c</version>
 </dependency>
 
     <dependency>

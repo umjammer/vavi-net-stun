@@ -5,6 +5,8 @@
 
 # vavi-net-stun
 
+<img alt="logo" src="src/test/resources/duke_stun.png" width="160" />
+
 STUN for Java
 
 ## Install
@@ -73,3 +75,7 @@ by `StunServer#setChangeIpRelay` (the overlay network nodes relay to each other 
   - ~~URLConnection-ize~~
   - Connection Are listeners released when the stream closes?
   - Distributed hashing?
+
+---
+
+<sub>image designed by @umjammer, drawn by nano banana</sub>
